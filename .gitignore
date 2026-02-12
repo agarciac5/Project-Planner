@@ -1,0 +1,53 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+env/
+venv/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# =========================
+# Django
+# =========================
+*.log
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# =========================
+# Environment variables
+# =========================
+.env
+
+# =========================
+# Testing / Coverage
+# =========================
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.pytest_cache/
+
+# =========================
+# IDEs
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
