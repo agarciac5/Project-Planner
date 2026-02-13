@@ -1,3 +1,5 @@
 from django.contrib import admin
+from .models import ClassroomManagement, TimeSlot
 
-# Register your models here.
+admin.site.register(ClassroomManagement)
+admin.site.register(TimeSlot)

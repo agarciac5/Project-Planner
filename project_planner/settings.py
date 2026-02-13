@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'access_support',
     'academic_core',
     'teaching',
-    'classroom',
+    'classrooms',
     'scheduling_enrollment',
 ]
 
