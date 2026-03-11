@@ -1,5 +1,5 @@
 from django.db import models
-from classrooms.models import ClassroomManagement, TimeSlot
+from classrooms.models import Classroom, TimeSlot
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Teacher(models.Model):

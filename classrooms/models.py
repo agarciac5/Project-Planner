@@ -1,6 +1,6 @@
 from django.db import models
 
-class ClassroomManagement(models.Model):
+class Classroom(models.Model):
     classroom_id = models.CharField(max_length=20, unique=True)
     capacity = models.PositiveIntegerField()
     is_active = models.BooleanField(default=True)
