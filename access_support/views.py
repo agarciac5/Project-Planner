@@ -1,6 +1,10 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from .login import EmailLoginForm
+import pandas as pd
+from .models import User
+
+from .services.excel_importer import import_excel_users
 
 
 def dashboard(request):
@@ -25,3 +29,17 @@ def login_view(request):
         form = EmailLoginForm()
 
     return render(request, "access_support/login.html", {"form": form})
+
+def upload_excel(request):
+
+    if request.method == "POST":
+
+        excel_file = request.FILES["excel_file"]
+
+        import_excel_users(excel_file)
+
+        return render(request, "admin/upload_excel.html", {
+            "message": "Import completed successfully"
+        })
+
+    return render(request, "admin/upload_excel.html")

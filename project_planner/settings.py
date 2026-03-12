@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'classrooms',
     'scheduling_enrollment',
 ]
-AUTH_USER_MODEL = 'access_support.User' # Custom user model
+AUTH_USER_MODEL = 'access_support.User' 
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
