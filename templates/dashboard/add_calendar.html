@@ -1,0 +1,61 @@
+{% extends 'base/base.html' %}
+{% block title %}Generar horario | ITM Planner{% endblock %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Generar horario</p>
+        <h2>Construye una nueva propuesta</h2>
+    </div>
+    <div class="header-actions">
+        <a href="{% url 'subjects' %}" class="btn btn-primary">Buscar materias</a>
+    </div>
+</section>
+
+<section class="split-layout">
+    <div class="card filters-card">
+        <div class="section-heading compact">
+            <h3>Filtros</h3>
+            <p>Ajusta preferencia de jornada y bloques libres.</p>
+        </div>
+        <div class="form-grid one">
+            <label class="field"><span>Programa</span><input type="text" value="Ingeniería de Software"></label>
+            <label class="field"><span>Jornada</span><select><option>Diurna</option><option>Nocturna</option></select></label>
+            <label class="field"><span>Máximo de materias</span><input type="number" value="5"></label>
+            <label class="field"><span>Evitar franjas</span><input type="text" value="6:00 am - 7:00 am"></label>
+        </div>
+    </div>
+
+    <div class="card table-card">
+        <div class="section-heading compact">
+            <h3>Vista previa</h3>
+            <p>Este bloque replica la idea del mockup para revisar el horario al mismo tiempo.</p>
+        </div>
+        <div class="table-responsive schedule-table-wrap">
+            <table class="data-table schedule-table">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Lunes</th>
+                        <th>Martes</th>
+                        <th>Miércoles</th>
+                        <th>Jueves</th>
+                        <th>Viernes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in schedule_rows %}
+                    <tr>
+                        <td class="time-col">{{ row.0 }}</td>
+                        <td>{% if row.1 %}<span class="subject-chip">{{ row.1 }}</span>{% endif %}</td>
+                        <td>{% if row.2 %}<span class="subject-chip">{{ row.2 }}</span>{% endif %}</td>
+                        <td>{% if row.3 %}<span class="subject-chip">{{ row.3 }}</span>{% endif %}</td>
+                        <td>{% if row.4 %}<span class="subject-chip">{{ row.4 }}</span>{% endif %}</td>
+                        <td>{% if row.5 %}<span class="subject-chip">{{ row.5 }}</span>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,24 @@
+<header class="topbar">
+    <div class="brand-block">
+        <div class="brand-mark">Uniminuto</div>
+        <div>
+            <p class="eyebrow">Project Planner</p>
+            <h1 class="brand-title">Planeador académico</h1>
+        </div>
+    </div>
+
+    <nav class="main-nav">
+        <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Inicio</a>
+        <a href="{% url 'calendar' %}" class="{% if request.resolver_match.url_name == 'calendar' %}active{% endif %}">Calendario</a>
+        <a href="{% url 'add_calendar' %}" class="{% if request.resolver_match.url_name == 'add_calendar' %}active{% endif %}">Generar horario</a>
+        <a href="{% url 'programs' %}" class="{% if request.resolver_match.url_name == 'programs' %}active{% endif %}">Programas</a>
+        <a href="{% url 'teachers' %}" class="{% if request.resolver_match.url_name == 'teachers' %}active{% endif %}">Docentes</a>
+        <a href="{% url 'classrooms' %}" class="{% if request.resolver_match.url_name == 'classrooms' %}active{% endif %}">Aulas</a>
+        <a href="{% url 'import' %}" class="{% if request.resolver_match.url_name == 'import' %}active{% endif %}">Importar</a>
+    </nav>
+
+    <div class="toolbar-actions">
+        <a class="icon-pill {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" href="{% url 'settings' %}">Ajustes</a>
+        <a class="icon-pill {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' %}">Perfil</a>
+    </div>
+</header>

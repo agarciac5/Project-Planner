@@ -1,0 +1,37 @@
+{% extends 'base/base.html' %}
+{% block title %}Programas | ITM Planner{% endblock %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Programas</p>
+        <h2>Oferta académica</h2>
+    </div>
+</section>
+
+<section class="card table-card">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Programa</th>
+                    <th>Código</th>
+                    <th>Duración</th>
+                    <th>Nivel</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in programs %}
+                <tr>
+                    <td>{{ item.0 }}</td>
+                    <td>{{ item.1 }}</td>
+                    <td>{{ item.2 }}</td>
+                    <td>{{ item.3 }}</td>
+                    <td><span class="status-pill">{{ item.4 }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

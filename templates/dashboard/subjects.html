@@ -1,0 +1,51 @@
+{% extends 'base/base.html' %}
+{% block title %}Buscar materias | ITM Planner{% endblock %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Buscar materias</p>
+        <h2>Opciones disponibles</h2>
+    </div>
+</section>
+
+<section class="card table-card">
+    <div class="toolbar-line">
+        <input class="search-input" type="text" placeholder="Buscar por materia, docente o código">
+        <a href="{% url 'subject_detail' %}" class="btn btn-primary">Ver detalle</a>
+    </div>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Materia</th>
+                    <th>Código</th>
+                    <th>Grupo</th>
+                    <th>Aula</th>
+                    <th>Día</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Docente</th>
+                    <th>Descripción</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in subject_options %}
+                <tr>
+                    <td>{{ item.materia }}</td>
+                    <td>{{ item.codigo }}</td>
+                    <td>{{ item.grupo }}</td>
+                    <td>{{ item.aula }}</td>
+                    <td>{{ item.dia }}</td>
+                    <td>{{ item.inicio }}</td>
+                    <td>{{ item.fin }}</td>
+                    <td>{{ item.docente }}</td>
+                    <td>{{ item.descripcion }}</td>
+                    <td><a class="table-link" href="{% url 'subject_detail' %}">Agregar</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends 'base/base.html' %}
+{% block title %}Agregado con éxito | ITM Planner{% endblock %}
+{% block content %}
+<section class="success-card card soft-gradient center-block">
+    <p class="eyebrow">Proceso completado</p>
+    <h2>{{ selected_subject.materia }}</h2>
+    <p>Fue agregado con éxito a tu horario.</p>
+    <div class="stack-actions horizontal-center">
+        <a class="btn btn-primary" href="{% url 'calendar' %}">Ir al calendario</a>
+        <a class="btn btn-secondary" href="{% url 'subjects' %}">Seguir agregando</a>
+    </div>
+</section>
+{% endblock %}
