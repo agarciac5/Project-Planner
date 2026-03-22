@@ -4,7 +4,6 @@ from .login import EmailLoginForm
 
 
 from academic_core.models import Campus, Faculty, AcademicProgram, Course, StudyPlan
-from teaching.models import Teacher
 from classrooms.models import Classroom
 from .models import StudentProfile
 
@@ -15,7 +14,7 @@ import string
 from django.contrib import messages
 from .models import User, StudentProfile
 
-from academic_core.models import Campus, Faculty, AcademicProgram
+
 
 SCHEDULE_ROWS = [
     ("6:00 am", "", "", "Tópicos Especiales", "", ""),
@@ -274,7 +273,7 @@ def subjects_view(request):
 def create_subject_view(request):
     context = _base_context(request)
 
-    context["teachers_db"] = Teacher.objects.all().order_by("first_name", "last_name")
+
     context["classrooms_db"] = Classroom.objects.all().order_by("classroom_id")
     context["programs_db"] = AcademicProgram.objects.all().order_by("name")
 
@@ -312,10 +311,7 @@ def added_success_view(request):
     return render(request, "dashboard/success.html", context)
 
 
-def teachers_view(request):
-    context = _base_context(request)
-    context["items"] = Teacher.objects.all().order_by("id")
-    return render(request, "dashboard/teachers.html", context)
+
 
 
 def students_view(request):

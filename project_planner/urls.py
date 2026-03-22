@@ -22,6 +22,7 @@ from access_support.views import dashboard
 
 urlpatterns = [
     path('', dashboard, name='home'),
+    path('teachers_list/', include('teaching.urls')),
     path('admin/', admin.site.urls),
     path("accounts/", include("access_support.urls")),
 ]

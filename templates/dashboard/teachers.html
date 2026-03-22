@@ -46,6 +46,47 @@
                                 </div>
                             </td>
                         </tr>
+
+                     
+                        <tr>
+                            <td colspan="8">
+                                <strong>Disponibilidad:</strong>
+                                {% for av in item.availabilities.all %}
+                                    {{ av.day }}: {{ av.start_time }} - {{ av.end_time }}{% if not forloop.last %}, {% endif %}
+                                {% empty %}
+                                    No disponible.
+                                {% endfor %}
+                            </td>
+                        </tr>
+
+                      
+                        <tr>
+                            <td colspan="8">
+                                <form method="POST" action="{% url 'add_availability' item.id %}">
+                                    {% csrf_token %}
+                                    <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                                        <label>Día:</label>
+                                        <select name="day" required>
+                                            <option value="">Seleccione un día</option>
+                                            <option value="Monday">Monday</option>
+                                            <option value="Tuesday">Tuesday</option>
+                                            <option value="Wednesday">Wednesday</option>
+                                            <option value="Thursday">Thursday</option>
+                                            <option value="Friday">Friday</option>
+                                        </select>
+
+                                        <label>Hora inicio:</label>
+                                        <input type="time" name="start_time" required>
+
+                                        <label>Hora fin:</label>
+                                        <input type="time" name="end_time" required>
+
+                                        <button type="submit" class="listing-pill listing-pill-soft">Agregar</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+
                         {% empty %}
                         <tr>
                             <td colspan="8" class="listing-empty">No hay docentes registrados.</td>
