@@ -1,13 +1,21 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from .login import EmailLoginForm
-from .services.excel_importer import import_excel_users
+
 
 from academic_core.models import Campus, Faculty, AcademicProgram, Course, StudyPlan
 from teaching.models import Teacher
 from classrooms.models import Classroom
 from .models import StudentProfile
 
+
+import pandas as pd
+import random
+import string
+from django.contrib import messages
+from .models import User, StudentProfile
+
+from academic_core.models import Campus, Faculty, AcademicProgram
 
 SCHEDULE_ROWS = [
     ("6:00 am", "", "", "Tópicos Especiales", "", ""),
@@ -244,17 +252,7 @@ def login_view(request):
     return render(request, "access_support/login.html", {"form": form})
 
 
-def upload_excel(request):
-    if request.method == "POST":
-        excel_file = request.FILES["excel_file"]
-        import_excel_users(excel_file)
-        return render(
-            request,
-            "admin/upload_excel.html",
-            {"message": "Import completed successfully"},
-        )
 
-    return render(request, "admin/upload_excel.html")
 
 
 def calendar_view(request):
@@ -365,8 +363,108 @@ def study_plan_view(request):
     return render(request, "dashboard/study_plan.html", context)
 
 
+def generar_password(longitud=10):
+    caracteres = string.ascii_letters + string.digits
+    return ''.join(random.sample(caracteres, longitud))
+
+
 def import_view(request):
     context = _base_context(request)
+
+    if request.method == "POST":
+        archivo = request.FILES.get("archivo")
+
+        if not archivo:
+            messages.error(request, "No se subió ningún archivo")
+            return render(request, "dashboard/import.html", context)
+
+        try:
+            df = pd.read_excel(archivo)
+            df = df.drop_duplicates(subset=["CORREO_ESTUDIANTE"])
+        except Exception:
+            messages.error(request, "Error al leer el archivo Excel")
+            return render(request, "dashboard/import.html", context)
+
+        emails_procesados = set()
+        resultados = []
+
+        for _, row in df.iterrows():
+            email = str(row.get("CORREO_ESTUDIANTE", "")).strip().lower()
+
+            if not email or email == "nan":
+                continue
+
+            email = email.replace(" ", "")
+            program_name = str(row.get("DESCRIPCION_PROGRAMA", "")).strip().lower()
+
+            if program_name not in [
+                "ingeniería industrial",
+                "ingenieria industrial",
+                "ingeniería de software",
+                "ingenieria de software"
+            ]:
+                continue
+         
+            if User.objects.filter(email=email).exists():
+                continue
+            try:
+                password = generar_password()
+
+                user, created = User.objects.get_or_create(
+                    email=email, 
+                    defaults={"role": "student" })
+
+                if created:
+                    user.set_password(password)
+                    user.save()
+                else:
+                    continue
+                campus, _ = Campus.objects.get_or_create(
+                    name=str(row.get("DESCRIPCION_SEDE", "")).strip()
+                )
+
+                faculty, _ = Faculty.objects.get_or_create(
+                    name=str(row.get("DESCRIPCION_FACULTAD", "")).strip(),
+                    defaults={"campus": campus}
+                )
+
+                program, _ = AcademicProgram.objects.get_or_create(
+                    name=str(row.get("DESCRIPCION_PROGRAMA", "")).strip(),
+                    defaults={
+                        "faculty": faculty,
+                        "campus": campus
+                    }
+                )
+                
+                StudentProfile.objects.create(
+                    user=user,
+                    student_code=str(row.get("CODIGO", "")),
+                    document_type=str(row.get("TIPO_DOCUMENTO", "")),
+                    document_number=str(row.get("NUM_DOCUMENTO", "")),
+                    full_name=str(row.get("NOMBRES", "")),
+
+                    campus=campus,
+                    faculty=faculty,
+                    program=program,
+                    level=str(row.get("DESCRIPCION_NIVEL", "")),
+                    jornada=str(row.get("JORNADA", "")),
+                    address=""
+                )
+
+                resultados.append({
+                    "email": email,
+                    "password": password
+                })
+
+                emails_procesados.add(email)
+
+            except Exception:
+                continue
+            
+
+        context["resultados"] = resultados
+        context["success_message"] = f"Se crearon {len(resultados)} usuarios"
+
     return render(request, "dashboard/import.html", context)
 
 

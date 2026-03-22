@@ -2,6 +2,7 @@
 
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    <input type="file" name="excel_file">
+    <h2>Subir Excel de Estudiantes</h2>
+    <input type="file" name="archivo" accept=".xlsx" required>
     <button type="submit">Upload</button>
 </form>

@@ -30,6 +30,15 @@ class User(AbstractUser):
     username = None
     email = models.EmailField(unique=True)
 
+    ROLE_CHOICES = (
+        ('student', 'Estudiante'),
+        ('teacher', 'Docente'),
+        ('admin', 'Administrador'),
+        ('coordinator', 'Coordinador'),
+    )
+
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 
@@ -39,27 +48,11 @@ class User(AbstractUser):
         return self.email
 
 
-class StudentProfile(models.Model):
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE
-    )
 
-    student_code = models.CharField(max_length=20, unique=True)
-    document_type = models.CharField(max_length=20)
-    document_number = models.CharField(max_length=30)
 
-    program = models.ForeignKey(
-        'academic_core.AcademicProgram',
-        on_delete=models.SET_NULL,
-        null=True
-    )
 
-    level = models.CharField(max_length=20, null=True, blank=True)
-    jornada = models.CharField(max_length=20, null=True, blank=True)
 
-    def __str__(self):
-        return f"{self.student_code} - {self.user.email}"
+
 
 
 class StudentProfile(models.Model):
@@ -68,8 +61,8 @@ class StudentProfile(models.Model):
         on_delete=models.CASCADE
     )
     student_code = models.CharField(max_length=20, unique=True)
-    document_type = models.CharField(max_length=20)
-    document_number = models.CharField(max_length=30)
+    document_type = models.CharField(max_length=20, blank=True, null=True)
+    document_number = models.CharField(max_length=30, blank=True, null=True)
     full_name = models.CharField(max_length=120, blank=True)
     address = models.CharField(max_length=200, blank=True)
 

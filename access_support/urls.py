@@ -2,7 +2,6 @@ from django.urls import path
 from .views import (
     dashboard,
     login_view,
-    upload_excel,
     calendar_view,
     add_calendar_view,
     subjects_view,
@@ -31,9 +30,10 @@ from .crud_views import (
     StudyPlanListView,
 )
 urlpatterns = [
+    path('import/', import_view, name='import'),
     path("login/", login_view, name="login"),
     path("", dashboard, name="home"),
-    path("upload-excel/", upload_excel, name="upload_excel"),
+
     path("calendario/", calendar_view, name="calendar"),
     path("generar-horario/", add_calendar_view, name="add_calendar"),
     path("materias/", subjects_view, name="subjects"),

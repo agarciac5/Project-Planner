@@ -9,26 +9,47 @@
 </section>
 
 <section class="card import-card">
-    <div class="form-grid two">
-        <label class="field">
-            <span>Tipo de archivo</span>
-            <select>
-                <option>PDF (.pdf)</option>
-                <option>Word (.doc, .docx)</option>
-                <option>Excel (.xls, .xlsx)</option>
-                <option>PowerPoint (.ppt, .pptx)</option>
-                <option>Imagen JPG (.jpg, .jpeg)</option>
-                <option>Imagen PNG (.png)</option>
-                <option>Texto (.txt)</option>
-                <option>CSV (.csv)</option>
-                <option>ZIP/RAR (.zip, .rar)</option>
-            </select>
-        </label>
-        <label class="field">
-            <span>Archivo</span>
-            <input type="file">
-        </label>
-    </div>
-    <button class="btn btn-primary">Importar documentos</button>
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-grid two">
+            <label class="field">
+                <span>Tipo de archivo</span>
+                <select>
+                    <option>Excel (.xlsx)</option>
+                </select>
+            </label>
+
+            <label class="field">
+                <span>Archivo</span>
+                <input type="file" name="archivo" accept=".xlsx" required>
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Importar documentos
+        </button>
+    </form>
 </section>
 {% endblock %}
+
+{% if success_message %}
+    <p>{{ success_message }}</p>
+{% endif %}
+
+{% if resultados %}
+    <h3>Usuarios creados</h3>
+    <table border="1">
+        <tr>
+            <th>Email</th>
+            <th>Contraseña</th>
+        </tr>
+
+        {% for r in resultados %}
+        <tr>
+            <td>{{ r.email }}</td>
+            <td>{{ r.password }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+{% endif %}
