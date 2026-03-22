@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% block title %}Inicio | ITM Planner{% endblock %}
+{% block title %}Inicio | UNIMINUTO Planner{% endblock %}
 {% block content %}
 <section class="hero card soft-gradient">
     <div>
@@ -9,59 +9,61 @@
     </div>
     <div class="hero-badges">
         <span>Periodo 2026-1</span>
-        <span>Estado activo</span>
+        <span>UNIMINUTO</span>
     </div>
 </section>
 
 <section class="section-heading">
     <h2>Módulos principales</h2>
-    <p>Diseño basado en el mockup: tarjetas grandes, navegación clara y bloques de acceso rápido.</p>
+    <p>Se agregaron materias, docentes, estudiantes, facultades, sedes, programas y plan de estudios.</p>
 </section>
 
 <section class="card-grid">
-    <a class="feature-card" href="{% url 'calendar' %}">
-        <div class="feature-icon">📅</div>
-        <h3>Ver horario</h3>
-        <p>Consulta tu semana académica por día y hora.</p>
-    </a>
-    <a class="feature-card" href="{% url 'add_calendar' %}">
-        <div class="feature-icon">➕</div>
-        <h3>Generar horario</h3>
-        <p>Arma nuevas combinaciones según materias y disponibilidad.</p>
-    </a>
     <a class="feature-card" href="{% url 'subjects' %}">
-        <div class="feature-icon">📚</div>
-        <h3>Buscar materias</h3>
-        <p>Explora grupos, horarios y docentes disponibles.</p>
-    </a>
-    <a class="feature-card" href="{% url 'programs' %}">
-        <div class="feature-icon">🗂️</div>
-        <h3>Programas</h3>
-        <p>Consulta los programas académicos y su estado actual.</p>
+        <div class="feature-icon">📘</div>
+        <h3>Materias</h3>
+        <p>Administra materias y crea nuevos registros.</p>
     </a>
     <a class="feature-card" href="{% url 'teachers' %}">
         <div class="feature-icon">👩‍🏫</div>
         <h3>Docentes</h3>
-        <p>Revisa materias, nivel de inglés y asignaciones.</p>
+        <p>Consulta cédula, código, programa, facultad y sede.</p>
     </a>
-    <a class="feature-card" href="{% url 'classrooms' %}">
-        <div class="feature-icon">🏫</div>
-        <h3>Aulas</h3>
-        <p>Visualiza bloques, salones y franjas disponibles.</p>
+    <a class="feature-card" href="{% url 'students' %}">
+        <div class="feature-icon">🎓</div>
+        <h3>Estudiantes</h3>
+        <p>Visualiza nombre, cédula, código y ubicación académica.</p>
     </a>
-    <a class="feature-card" href="{% url 'import' %}">
-        <div class="feature-icon">⬆️</div>
-        <h3>Importar datos</h3>
-        <p>Sube documentos del proyecto desde distintos formatos.</p>
+    <a class="feature-card" href="{% url 'programs' %}">
+        <div class="feature-icon">🗂️</div>
+        <h3>Programas</h3>
+        <p>Gestiona el catálogo base de programas.</p>
     </a>
-    <a class="feature-card" href="{% url 'profile' %}">
-        <div class="feature-icon">👤</div>
-        <h3>Mi perfil</h3>
-        <p>Consulta tu información personal y estado académico.</p>
+    <a class="feature-card" href="{% url 'faculties' %}">
+        <div class="feature-icon">🏛️</div>
+        <h3>Facultades</h3>
+        <p>Consulta los nombres e identificadores de facultad.</p>
+    </a>
+    <a class="feature-card" href="{% url 'campuses' %}">
+        <div class="feature-icon">📍</div>
+        <h3>Sedes</h3>
+        <p>Revisa la lista de sedes registradas.</p>
+    </a>
+    <a class="feature-card" href="{% url 'study_plan' %}">
+        <div class="feature-icon">🧭</div>
+        <h3>Plan de estudios</h3>
+        <p>Busca el programa y revisa sus materias por semestre.</p>
+    </a>
+    <a class="feature-card" href="{% url 'calendar' %}">
+        <div class="feature-icon">📅</div>
+        <h3>Calendario</h3>
+        <p>Consulta el horario semanal y genera propuestas.</p>
     </a>
 </section>
 
-<footer class="bottom-dots">
-    <span class="active"></span><span></span><span></span>
-</footer>
+<div class="bottom-dots">
+    <span class="active"></span>
+    <span></span>
+    <span></span>
+</div>
 {% endblock %}

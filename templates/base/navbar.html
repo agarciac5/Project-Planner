@@ -1,8 +1,8 @@
 <header class="topbar">
     <div class="brand-block">
-        <div class="brand-mark">Uniminuto</div>
+        <div class="brand-mark">UNI</div>
         <div>
-            <p class="eyebrow">Project Planner</p>
+            <p class="eyebrow">UNIMINUTO</p>
             <h1 class="brand-title">Planeador académico</h1>
         </div>
     </div>
@@ -11,8 +11,13 @@
         <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Inicio</a>
         <a href="{% url 'calendar' %}" class="{% if request.resolver_match.url_name == 'calendar' %}active{% endif %}">Calendario</a>
         <a href="{% url 'add_calendar' %}" class="{% if request.resolver_match.url_name == 'add_calendar' %}active{% endif %}">Generar horario</a>
-        <a href="{% url 'programs' %}" class="{% if request.resolver_match.url_name == 'programs' %}active{% endif %}">Programas</a>
+        <a href="{% url 'subjects' %}" class="{% if request.resolver_match.url_name == 'subjects' or request.resolver_match.url_name == 'create_subject' %}active{% endif %}">Materias</a>
         <a href="{% url 'teachers' %}" class="{% if request.resolver_match.url_name == 'teachers' %}active{% endif %}">Docentes</a>
+        <a href="{% url 'students' %}" class="{% if request.resolver_match.url_name == 'students' %}active{% endif %}">Estudiantes</a>
+        <a href="{% url 'programs' %}" class="{% if request.resolver_match.url_name == 'programs' %}active{% endif %}">Programas</a>
+        <a href="{% url 'study_plan' %}" class="{% if request.resolver_match.url_name == 'study_plan' %}active{% endif %}">Plan de estudios</a>
+        <a href="{% url 'faculties' %}" class="{% if request.resolver_match.url_name == 'faculties' %}active{% endif %}">Facultades</a>
+        <a href="{% url 'campuses' %}" class="{% if request.resolver_match.url_name == 'campuses' %}active{% endif %}">Sedes</a>
         <a href="{% url 'classrooms' %}" class="{% if request.resolver_match.url_name == 'classrooms' %}active{% endif %}">Aulas</a>
         <a href="{% url 'import' %}" class="{% if request.resolver_match.url_name == 'import' %}active{% endif %}">Importar</a>
     </nav>

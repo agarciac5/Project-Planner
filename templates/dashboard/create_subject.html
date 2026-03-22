@@ -1,0 +1,124 @@
+{% extends "base/base.html" %}
+
+{% block title %}Crear materia | UNIMINUTO{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="section-header">
+        <div>
+            <p class="section-eyebrow">Materias</p>
+            <h2>Crear materia</h2>
+            <p>Completa la información de la materia. Los campos desplegables conservan su selección.</p>
+        </div>
+        <a href="{% url 'subjects' %}" class="secondary-btn">Volver a materias</a>
+    </div>
+
+    {% if success_message %}
+    <div class="success-banner">
+        {{ success_message }}
+    </div>
+    {% endif %}
+
+    <div class="content-card subject-form-card">
+        <form method="post" class="planner-form">
+            {% csrf_token %}
+
+            <div class="planner-form-grid">
+                <div class="planner-form-field">
+                    <label for="id">ID</label>
+                    <input type="text" id="id" name="id" value="{{ form_data.id|default:'' }}">
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="materia">Materia</label>
+                    <input type="text" id="materia" name="materia" value="{{ form_data.materia|default:'' }}">
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="codigo">Código</label>
+                    <input type="text" id="codigo" name="codigo" value="{{ form_data.codigo|default:'' }}">
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="grupo">Grupo</label>
+                    <input type="text" id="grupo" name="grupo" value="{{ form_data.grupo|default:'' }}">
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="docente">Docente</label>
+                    <select id="docente" name="docente">
+                        <option value="">Selecciona un docente</option>
+                        {% for teacher in teachers_db %}
+                        <option value="{{ teacher.id }}" {% if form_data.docente == teacher.id|stringformat:"s" %}selected{% endif %}>
+                            {{ teacher.first_name }} {{ teacher.last_name }}
+                        </option>
+                        {% empty %}
+                        <option value="">No hay docentes registrados</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="aula">Aula</label>
+                    <select id="aula" name="aula">
+                        <option value="">Selecciona un aula</option>
+                        {% for classroom in classrooms_db %}
+                        <option value="{{ classroom.id }}" {% if form_data.aula == classroom.id|stringformat:"s" %}selected{% endif %}>
+                            {{ classroom.classroom_id }}{% if classroom.name %} - {{ classroom.name }}{% endif %}
+                        </option>
+                        {% empty %}
+                        <option value="">No hay aulas registradas</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="dia">Día</label>
+                    <select id="dia" name="dia">
+                        <option value="">Selecciona un día</option>
+                        <option value="Lunes" {% if form_data.dia == "Lunes" %}selected{% endif %}>Lunes</option>
+                        <option value="Martes" {% if form_data.dia == "Martes" %}selected{% endif %}>Martes</option>
+                        <option value="Miércoles" {% if form_data.dia == "Miércoles" %}selected{% endif %}>Miércoles</option>
+                        <option value="Jueves" {% if form_data.dia == "Jueves" %}selected{% endif %}>Jueves</option>
+                        <option value="Viernes" {% if form_data.dia == "Viernes" %}selected{% endif %}>Viernes</option>
+                        <option value="Sábado" {% if form_data.dia == "Sábado" %}selected{% endif %}>Sábado</option>
+                    </select>
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="programa">Programa</label>
+                    <select id="programa" name="programa">
+                        <option value="">Selecciona un programa</option>
+                        {% for program in programs_db %}
+                        <option value="{{ program.id }}" {% if form_data.programa == program.id|stringformat:"s" %}selected{% endif %}>
+                            {{ program.name }}
+                        </option>
+                        {% empty %}
+                        <option value="">No hay programas registrados</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="inicio">Hora inicio</label>
+                    <input type="time" id="inicio" name="inicio" value="{{ form_data.inicio|default:'' }}">
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="fin">Hora fin</label>
+                    <input type="time" id="fin" name="fin" value="{{ form_data.fin|default:'' }}">
+                </div>
+            </div>
+
+            <div class="planner-form-field planner-form-field-full">
+                <label for="descripcion">Descripción</label>
+                <textarea id="descripcion" name="descripcion" rows="4">{{ form_data.descripcion|default:'' }}</textarea>
+            </div>
+
+            <div class="planner-form-actions">
+                <button type="submit" class="primary-btn">Guardar materia</button>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

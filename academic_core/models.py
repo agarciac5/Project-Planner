@@ -1,9 +1,44 @@
 from django.db import models
 
 
+class Campus(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+
+class Faculty(models.Model):
+    name = models.CharField(max_length=100)
+    campus = models.ForeignKey(
+        Campus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="faculties"
+    )
+
+    def __str__(self):
+        return self.name
+
+
 class AcademicProgram(models.Model):
     name = models.CharField(max_length=100)
-    code = models.CharField(max_length=20, unique=True)
+    code = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    faculty = models.ForeignKey(
+        Faculty,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="programs"
+    )
+    campus = models.ForeignKey(
+        Campus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="programs"
+    )
 
     def __str__(self):
         return self.name
@@ -25,7 +60,6 @@ class StudyPlan(models.Model):
         on_delete=models.CASCADE,
         related_name="study_plans"
     )
-
     version = models.CharField(max_length=20)
     description = models.TextField(blank=True)
 
@@ -36,7 +70,8 @@ class StudyPlan(models.Model):
 class Course(models.Model):
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=20, unique=True)
-    credits = models.IntegerField()
+    credits = models.IntegerField(default=0)
+    semester = models.PositiveIntegerField(default=1)
 
     study_plan = models.ForeignKey(
         StudyPlan,
@@ -54,12 +89,10 @@ class CourseGroup(models.Model):
         on_delete=models.CASCADE,
         related_name="groups"
     )
-
     term = models.ForeignKey(
         AcademicTerm,
         on_delete=models.CASCADE
     )
-
     group_number = models.IntegerField()
     capacity = models.IntegerField(default=30)
 

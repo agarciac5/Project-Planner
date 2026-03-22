@@ -1,0 +1,50 @@
+{% extends 'base/base.html' %}
+{% block title %}Plan de estudios | UNIMINUTO Planner{% endblock %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Plan de estudios</p>
+        <h2>Materias por semestre</h2>
+    </div>
+</section>
+
+<section class="card">
+    <form method="get" class="toolbar-line">
+        <label class="field inline-field">
+            <span>Buscar programa</span>
+            <select name="program" onchange="this.form.submit()">
+                <option value="">Todos los programas</option>
+                {% for item in programs %}
+                <option value="{{ item.nombre }}" {% if selected_program == item.nombre %}selected{% endif %}>{{ item.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+    </form>
+</section>
+
+{% for plan in filtered_plans %}
+<section class="card study-plan-card">
+    <div class="section-heading compact">
+        <h3>{{ plan.programa }}</h3>
+        <p>Relación de asignaturas organizadas por semestre.</p>
+    </div>
+
+    <div class="semester-grid">
+        {% for semestre in plan.semestres %}
+        <article class="semester-card">
+            <h4>Semestre {{ semestre.numero }}</h4>
+            <ul>
+                {% for materia in semestre.materias %}
+                <li>{{ materia }}</li>
+                {% endfor %}
+            </ul>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% empty %}
+<section class="card empty-note">
+    <p>No hay resultados para el programa seleccionado.</p>
+</section>
+{% endfor %}
+{% endblock %}

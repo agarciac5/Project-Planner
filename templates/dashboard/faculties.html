@@ -1,17 +1,17 @@
 {% extends "base/base.html" %}
 
-{% block title %}Materias | UNIMINUTO{% endblock %}
+{% block title %}Facultades | UNIMINUTO{% endblock %}
 
 {% block content %}
 <section class="page-section">
     <div class="listing-shell">
         <div class="listing-header">
             <div class="listing-header-copy">
-                <p class="listing-eyebrow">Gestión académica</p>
-                <h2 class="listing-title">Materias</h2>
-                <p class="listing-subtitle">Consulta, crea, edita o elimina materias.</p>
+                <p class="listing-eyebrow">Gestión institucional</p>
+                <h2 class="listing-title">Facultades</h2>
+                <p class="listing-subtitle">Consulta, crea, edita o elimina facultades.</p>
             </div>
-            <a href="{% url 'course_create' %}" class="listing-top-btn">Crear materia</a>
+            <a href="{% url 'faculty_create' %}" class="listing-top-btn">Crear facultad</a>
         </div>
 
         <div class="listing-card">
@@ -20,11 +20,8 @@
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Código</th>
                             <th>Nombre</th>
-                            <th>Créditos</th>
-                            <th>Semestre</th>
-                            <th>Plan de estudios</th>
+                            <th>Sede</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -32,21 +29,18 @@
                         {% for item in items %}
                         <tr>
                             <td class="listing-main-text">{{ item.id }}</td>
-                            <td>{{ item.code }}</td>
                             <td class="listing-main-text">{{ item.name }}</td>
-                            <td>{{ item.credits }}</td>
-                            <td>{{ item.semester }}</td>
-                            <td class="listing-muted">{{ item.study_plan|default:"-" }}</td>
+                            <td>{{ item.campus|default:"-" }}</td>
                             <td>
                                 <div class="listing-actions">
-                                    <a href="{% url 'course_edit' item.id %}" class="listing-pill">Editar</a>
-                                    <a href="{% url 'course_delete' item.id %}" class="listing-pill listing-pill-soft">Eliminar</a>
+                                    <a href="{% url 'faculty_edit' item.id %}" class="listing-pill">Editar</a>
+                                    <a href="{% url 'faculty_delete' item.id %}" class="listing-pill listing-pill-soft">Eliminar</a>
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="listing-empty">No hay materias registradas.</td>
+                            <td colspan="4" class="listing-empty">No hay facultades registradas.</td>
                         </tr>
                         {% endfor %}
                     </tbody>

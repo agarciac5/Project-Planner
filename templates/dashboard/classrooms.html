@@ -1,37 +1,56 @@
-{% extends 'base/base.html' %}
-{% block title %}Aulas | ITM Planner{% endblock %}
-{% block content %}
-<section class="page-header">
-    <div>
-        <p class="eyebrow">Aulas</p>
-        <h2>Disponibilidad de salones</h2>
-    </div>
-</section>
+{% extends "base/base.html" %}
 
-<section class="card table-card">
-    <div class="table-responsive">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Bloque</th>
-                    <th>Salón</th>
-                    <th>Descripción del aula</th>
-                    <th>Disponible desde</th>
-                    <th>Disponible hasta</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in classrooms %}
-                <tr>
-                    <td>{{ item.0 }}</td>
-                    <td>{{ item.1 }}</td>
-                    <td>{{ item.2 }}</td>
-                    <td>{{ item.3 }}</td>
-                    <td>{{ item.4 }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+{% block title %}Aulas | UNIMINUTO{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="listing-shell">
+        <div class="listing-header">
+            <div class="listing-header-copy">
+                <p class="listing-eyebrow">Gestión de espacios</p>
+                <h2 class="listing-title">Aulas</h2>
+                <p class="listing-subtitle">Consulta, crea, edita o elimina aulas.</p>
+            </div>
+            <a href="{% url 'classroom_create' %}" class="listing-top-btn">Crear aula</a>
+        </div>
+
+        <div class="listing-card">
+            <div class="listing-table-wrap">
+                <table class="listing-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Código aula</th>
+                            <th>Nombre</th>
+                            <th>Bloque</th>
+                            <th>Sede</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="listing-main-text">{{ item.id }}</td>
+                            <td>{{ item.classroom_id }}</td>
+                            <td class="listing-main-text">{{ item.name|default:"-" }}</td>
+                            <td>{{ item.block }}</td>
+                            <td>{{ item.campus|default:"-" }}</td>
+                            <td>
+                                <div class="listing-actions">
+                                    <a href="{% url 'classroom_edit' item.id %}" class="listing-pill">Editar</a>
+                                    <a href="{% url 'classroom_delete' item.id %}" class="listing-pill listing-pill-soft">Eliminar</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="listing-empty">No hay aulas registradas.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </section>
 {% endblock %}
