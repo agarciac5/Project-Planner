@@ -1,22 +1,22 @@
-# views.py
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import Teacher, Availability
 from access_support.forms import TeacherForm
 
-# Vista para listar docentes
+
 def teachers_view(request):
     teachers = Teacher.objects.all().order_by("id")
     return render(request, "dashboard/teachers.html", {"items": teachers})
 
-# Vista para crear docente usando el formulario genérico
+
 def teacher_create_view(request):
     if request.method == "POST":
         form = TeacherForm(request.POST)
         if form.is_valid():
-            teacher = form.save()  # Crea el docente automáticamente
+            teacher = form.save() 
 
-            # Opcional: agregar disponibilidad si se envió
+        
             day = request.POST.get("day")
             start_time = request.POST.get("start_time")
             end_time = request.POST.get("end_time")
