@@ -1,0 +1,53 @@
+{% extends "base/base.html" %}
+
+{% block title %}Formulario | UNIMINUTO{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="section-header">
+        <div>
+            <p class="section-eyebrow">Gestión académica</p>
+            <h2>{% if form.instance.pk %}Editar registro{% else %}Crear registro{% endif %}</h2>
+            <p>Completa la información del formulario.</p>
+        </div>
+        <a href="javascript:history.back()" class="secondary-btn">Volver</a>
+    </div>
+
+    <div class="content-card subject-form-card">
+        <form method="post" class="styled-crud-form">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="success-banner" style="background:#fff1f2; color:#b42318; border-color:#fecdd3;">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="planner-form-grid">
+                {% for field in form %}
+                <div class="planner-form-field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+
+                    {{ field }}
+
+                    {% if field.help_text %}
+                    <small class="field-help">{{ field.help_text }}</small>
+                    {% endif %}
+
+                    {% if field.errors %}
+                    <div class="field-error">
+                        {{ field.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="planner-form-actions">
+                <button type="submit" class="primary-btn">Guardar</button>
+                <a href="javascript:history.back()" class="secondary-btn">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

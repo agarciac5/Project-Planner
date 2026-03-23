@@ -1,0 +1,55 @@
+{% extends 'base/base.html' %}
+{% block title %}Ajustes | ITM Planner{% endblock %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Ajustes</p>
+        <h2>Configuración general</h2>
+    </div>
+</section>
+
+<section class="settings-layout">
+    <aside class="card settings-menu">
+        <h3>Menú</h3>
+        <ul>
+            <li class="active">Cuenta</li>
+            <li>Periodo académico</li>
+            <li>Preferencias</li>
+            <li>Notificaciones</li>
+            <li>Accesibilidad</li>
+            <li>Ayuda y soporte</li>
+        </ul>
+    </aside>
+
+    <div class="settings-panels">
+        <article class="card">
+            <h3>Cuenta</h3>
+            <div class="info-grid">
+                <div><span>Mi perfil</span><strong>Actualizar datos básicos</strong></div>
+                <div><span>Cambiar contraseña</span><strong>Última modificación hace 30 días</strong></div>
+                <div><span>Cerrar sesión</span><strong>Disponible desde el menú superior</strong></div>
+            </div>
+        </article>
+
+        <article class="card">
+            <h3>Preferencias</h3>
+            <div class="form-grid two">
+                <label class="field"><span>Idioma</span><select><option>Español</option><option>English</option></select></label>
+                <label class="field"><span>Formato de hora</span><select><option>12 horas</option><option>24 horas</option></select></label>
+                <label class="field"><span>Tema</span><select><option>Claro</option><option>Oscuro</option></select></label>
+                <label class="field"><span>Periodo por defecto</span><select><option>2026-1</option><option>2026-2</option></select></label>
+            </div>
+        </article>
+
+        <article class="card">
+            <h3>Notificaciones y accesibilidad</h3>
+            <div class="toggle-list">
+                <label><input type="checkbox" checked> Avisos de cambios de horario</label>
+                <label><input type="checkbox" checked> Recordatorios de clase</label>
+                <label><input type="checkbox"> Alto contraste</label>
+                <label><input type="checkbox"> Texto ampliado</label>
+            </div>
+        </article>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base/base.html" %}
+
+{% block title %}Sedes | UNIMINUTO{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="listing-shell">
+        <div class="listing-header">
+            <div class="listing-header-copy">
+                <p class="listing-eyebrow">Gestión institucional</p>
+                <h2 class="listing-title">Sedes</h2>
+                <p class="listing-subtitle">Consulta, crea, edita o elimina sedes.</p>
+            </div>
+            <a href="{% url 'campus_create' %}" class="listing-top-btn">Crear sede</a>
+        </div>
+
+        <div class="listing-card">
+            <div class="listing-table-wrap">
+                <table class="listing-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="listing-main-text">{{ item.id }}</td>
+                            <td class="listing-main-text">{{ item.name }}</td>
+                            <td>
+                                <div class="listing-actions">
+                                    <a href="{% url 'campus_edit' item.id %}" class="listing-pill">Editar</a>
+                                    <a href="{% url 'campus_delete' item.id %}" class="listing-pill listing-pill-soft">Eliminar</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="listing-empty">No hay sedes registradas.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

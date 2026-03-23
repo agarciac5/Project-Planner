@@ -1,0 +1,60 @@
+{% extends "base/base.html" %}
+
+{% block title %}Estudiantes | UNIMINUTO{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="listing-shell">
+        <div class="listing-header">
+            <div class="listing-header-copy">
+                <p class="listing-eyebrow">Gestión académica</p>
+                <h2 class="listing-title">Estudiantes</h2>
+                <p class="listing-subtitle">Consulta, crea, edita o elimina estudiantes.</p>
+            </div>
+            <a href="{% url 'student_create' %}" class="listing-top-btn">Crear estudiante</a>
+        </div>
+
+        <div class="listing-card">
+            <div class="listing-table-wrap">
+                <table class="listing-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre completo</th>
+                            <th>Cédula</th>
+                            <th>Código estudiante</th>
+                            <th>Dirección</th>
+                            <th>Facultad</th>
+                            <th>Sede</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="listing-main-text">{{ item.id }}</td>
+                            <td class="listing-main-text">{{ item.full_name|default:item.user.email }}</td>
+                            <td>{{ item.document_number|default:"-" }}</td>
+                            <td>{{ item.student_code|default:"-" }}</td>
+                            <td class="listing-muted">{{ item.address|default:"-" }}</td>
+                            <td>{{ item.faculty|default:"-" }}</td>
+                            <td>{{ item.campus|default:"-" }}</td>
+                            <td>
+                                <div class="listing-actions">
+                                    <a href="{% url 'student_edit' item.id %}" class="listing-pill">Editar</a>
+                                    <a href="{% url 'student_delete' item.id %}" class="listing-pill listing-pill-soft">Eliminar</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="listing-empty">No hay estudiantes registrados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Registro | ITM Planner{% endblock %}
+
+{% block page_class %}page-centered{% endblock %}
+
+{% block content %}
+<div class="login-layout">
+
+    <!-- LADO IZQUIERDO (texto bonito) -->
+    <div class="login-copy">
+        <h2>Crear cuenta</h2>
+        <p>Regístrate para comenzar a gestionar tu horario académico.</p>
+
+        <div class="bullet-list">
+            <span>✔ Accede a tu horario personalizado</span>
+            <span>✔ Gestiona tus materias fácilmente</span>
+            <span>✔ Visualiza tu progreso académico</span>
+        </div>
+    </div>
+
+    <!-- LADO DERECHO (formulario) -->
+    <div class="card login-card">
+
+        <h2>Registro</h2>
+
+        <!-- MENSAJES -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert-danger">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-grid">
+
+                <div class="field">
+                    <label>Correo electrónico</label>
+                    <input type="email" name="email" required>
+                </div>
+
+                <div class="field">
+                    <label>Contraseña</label>
+                    <input type="password" name="password" required>
+                </div>
+
+                <div class="field">
+                    <label>Confirmar contraseña</label>
+                    <input type="password" name="confirm" required>
+                </div>
+
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                Registrarse
+            </button>
+        </form>
+
+        <p style="margin-top: 16px; text-align: center;">
+            ¿Ya tienes cuenta?
+            <a href="{% url 'login' %}" style="color: var(--primary); font-weight: 700;">
+                Inicia sesión
+            </a>
+        </p>
+
+    </div>
+
+</div>
+{% endblock %}

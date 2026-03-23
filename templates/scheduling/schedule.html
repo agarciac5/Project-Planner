@@ -1,0 +1,42 @@
+{% extends 'base/base.html' %}
+{% block title %}Calendario | ITM Planner{% endblock %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Calendario</p>
+        <h2>Horario semanal</h2>
+    </div>
+    <div class="header-actions">
+        <a href="{% url 'add_calendar' %}" class="btn btn-primary">Generar nuevo</a>
+    </div>
+</section>
+
+<section class="card table-card">
+    <div class="table-responsive schedule-table-wrap">
+        <table class="data-table schedule-table">
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>Lunes</th>
+                    <th>Martes</th>
+                    <th>Miércoles</th>
+                    <th>Jueves</th>
+                    <th>Viernes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in schedule_rows %}
+                <tr>
+                    <td class="time-col">{{ row.0 }}</td>
+                    <td>{% if row.1 %}<span class="subject-chip">{{ row.1 }}</span>{% endif %}</td>
+                    <td>{% if row.2 %}<span class="subject-chip">{{ row.2 }}</span>{% endif %}</td>
+                    <td>{% if row.3 %}<span class="subject-chip">{{ row.3 }}</span>{% endif %}</td>
+                    <td>{% if row.4 %}<span class="subject-chip">{{ row.4 }}</span>{% endif %}</td>
+                    <td>{% if row.5 %}<span class="subject-chip">{{ row.5 }}</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

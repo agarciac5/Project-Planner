@@ -1,0 +1,34 @@
+{% extends 'base/base.html' %}
+{% block title %}Detalle de materia | ITM Planner{% endblock %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Descripción del calendario</p>
+        <h2>{{ selected_subject.materia }}</h2>
+    </div>
+</section>
+
+<section class="detail-layout">
+    <article class="card detail-main">
+        <h3>{{ selected_subject.materia }} — Día: {{ selected_subject.dia }}</h3>
+        <p><strong>Horario:</strong> {{ selected_subject.inicio }} – {{ selected_subject.fin }}</p>
+        <p><strong>Aula:</strong> {{ selected_subject.aula }}</p>
+        <p><strong>Docente:</strong> {{ selected_subject.docente }}</p>
+        <p><strong>Código:</strong> {{ selected_subject.codigo }}</p>
+        <p><strong>Grupo:</strong> {{ selected_subject.grupo }}</p>
+        <p><strong>Descripción:</strong> {{ selected_subject.descripcion }}</p>
+    </article>
+
+    <aside class="card detail-side">
+        <div class="section-heading compact">
+            <h3>Otras opciones</h3>
+            <p>Rutas rápidas según el mockup.</p>
+        </div>
+        <div class="stack-actions">
+            <a class="btn btn-primary btn-block" href="{% url 'added_success' %}">Agregar</a>
+            <a class="btn btn-secondary btn-block" href="{% url 'subjects' %}">Volver a materias</a>
+            <a class="btn btn-secondary btn-block" href="{% url 'calendar' %}">Ver horario</a>
+        </div>
+    </aside>
+</section>
+{% endblock %}

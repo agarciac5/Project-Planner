@@ -1,0 +1,16 @@
+{% extends "base/base.html" %}
+
+{% block content %}
+<section class="page-section">
+    <div class="content-card">
+        <h2>Confirmar eliminación</h2>
+        <p>¿Seguro que quieres eliminar este registro?</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="danger-btn">Eliminar</button>
+            <a href="javascript:history.back()" class="secondary-btn">Cancelar</a>
+        </form>
+    </div>
+</section>
+{% endblock %}

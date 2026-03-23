@@ -1,0 +1,58 @@
+{% extends "base/base.html" %}
+
+{% block title %}Materias | UNIMINUTO{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="listing-shell">
+        <div class="listing-header">
+            <div class="listing-header-copy">
+                <p class="listing-eyebrow">Gestión académica</p>
+                <h2 class="listing-title">Materias</h2>
+                <p class="listing-subtitle">Consulta, crea, edita o elimina materias.</p>
+            </div>
+            <a href="{% url 'course_create' %}" class="listing-top-btn">Crear materia</a>
+        </div>
+
+        <div class="listing-card">
+            <div class="listing-table-wrap">
+                <table class="listing-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Créditos</th>
+                            <th>Semestre</th>
+                            <th>Plan de estudios</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="listing-main-text">{{ item.id }}</td>
+                            <td>{{ item.code }}</td>
+                            <td class="listing-main-text">{{ item.name }}</td>
+                            <td>{{ item.credits }}</td>
+                            <td>{{ item.semester }}</td>
+                            <td class="listing-muted">{{ item.study_plan|default:"-" }}</td>
+                            <td>
+                                <div class="listing-actions">
+                                    <a href="{% url 'course_edit' item.id %}" class="listing-pill">Editar</a>
+                                    <a href="{% url 'course_delete' item.id %}" class="listing-pill listing-pill-soft">Eliminar</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="listing-empty">No hay materias registradas.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

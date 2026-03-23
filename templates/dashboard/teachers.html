@@ -1,0 +1,101 @@
+{% extends "base/base.html" %}
+
+{% block title %}Docentes | UNIMINUTO{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="listing-shell">
+        <div class="listing-header">
+            <div class="listing-header-copy">
+                <p class="listing-eyebrow">Gestión académica</p>
+                <h2 class="listing-title">Docentes</h2>
+                <p class="listing-subtitle">Consulta, crea, edita o elimina docentes.</p>
+            </div>
+            <a href="{% url 'teacher_create' %}" class="listing-top-btn">Crear docente</a>
+        </div>
+
+        <div class="listing-card">
+            <div class="listing-table-wrap">
+                <table class="listing-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Código profesor</th>
+                            <th>Nombre completo</th>
+                            <th>Dirección</th>
+                            <th>Programa</th>
+                            <th>Facultad</th>
+                            <th>Sede</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="listing-main-text">{{ item.id }}</td>
+                            <td>{{ item.teacher_id }}</td>
+                            <td class="listing-main-text">{{ item.first_name }} {{ item.last_name }}</td>
+                            <td class="listing-muted">{{ item.address|default:"-" }}</td>
+                            <td>{{ item.program|default:"-" }}</td>
+                            <td>{{ item.faculty|default:"-" }}</td>
+                            <td>{{ item.campus|default:"-" }}</td>
+                            <td>
+                                <div class="listing-actions">
+                                    <a href="{% url 'teacher_edit' item.id %}" class="listing-pill">Editar</a>
+                                    <a href="{% url 'teacher_delete' item.id %}" class="listing-pill listing-pill-soft">Eliminar</a>
+                                </div>
+                            </td>
+                        </tr>
+
+                     
+                        <tr>
+                            <td colspan="8">
+                                <strong>Disponibilidad:</strong>
+                                {% for av in item.availabilities.all %}
+                                    {{ av.day }}: {{ av.start_time }} - {{ av.end_time }}{% if not forloop.last %}, {% endif %}
+                                {% empty %}
+                                    No disponible.
+                                {% endfor %}
+                            </td>
+                        </tr>
+
+                      
+                        <tr>
+                            <td colspan="8">
+                                <form method="POST" action="{% url 'add_availability' item.id %}">
+                                    {% csrf_token %}
+                                    <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                                        <label>Día:</label>
+                                        <select name="day" required>
+                                            <option value="">Seleccione un día</option>
+                                            <option value="Monday">Monday</option>
+                                            <option value="Tuesday">Tuesday</option>
+                                            <option value="Wednesday">Wednesday</option>
+                                            <option value="Thursday">Thursday</option>
+                                            <option value="Friday">Friday</option>
+                                        </select>
+
+                                        <label>Hora inicio:</label>
+                                        <input type="time" name="start_time" required>
+
+                                        <label>Hora fin:</label>
+                                        <input type="time" name="end_time" required>
+
+                                        <button type="submit" class="listing-pill listing-pill-soft">Agregar</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="listing-empty">No hay docentes registrados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
