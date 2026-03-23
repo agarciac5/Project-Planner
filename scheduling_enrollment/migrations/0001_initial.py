@@ -10,41 +10,117 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('academic_core', '0001_initial'),
-        ('classrooms', '0001_initial'),
-        ('teaching', '0001_initial'),
+        ("academic_core", "0001_initial"),
+        ("classrooms", "0001_initial"),
+        ("teaching", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CourseGroup',
+            name="CourseGroup",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('capacity', models.IntegerField(default=30)),
-                ('classroom', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='classrooms.classroom')),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='academic_core.course')),
-                ('teacher', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='teaching.teacher')),
-                ('timeslot', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='classrooms.timeslot')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("capacity", models.IntegerField(default=30)),
+                (
+                    "classroom",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="classrooms.classroom",
+                    ),
+                ),
+                (
+                    "course",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="academic_core.course",
+                    ),
+                ),
+                (
+                    "teacher",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="teaching.teacher",
+                    ),
+                ),
+                (
+                    "timeslot",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="classrooms.timeslot",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='EnrollmentQueue',
+            name="EnrollmentQueue",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('request_date', models.DateTimeField(auto_now_add=True)),
-                ('status', models.CharField(choices=[('waiting', 'Waiting'), ('enrolled', 'Enrolled')], default='waiting', max_length=20)),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='academic_core.course')),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("request_date", models.DateTimeField(auto_now_add=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("waiting", "Waiting"), ("enrolled", "Enrolled")],
+                        default="waiting",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "course",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="academic_core.course",
+                    ),
+                ),
+                (
+                    "student",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Schedule',
+            name="Schedule",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('published', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='scheduling_enrollment.coursegroup')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("published", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "group",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="scheduling_enrollment.coursegroup",
+                    ),
+                ),
             ],
         ),
     ]

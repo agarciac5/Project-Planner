@@ -31,13 +31,13 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
 
     ROLE_CHOICES = (
-        ('student', 'Estudiante'),
-        ('teacher', 'Docente'),
-        ('admin', 'Administrador'),
-        ('coordinator', 'Coordinador'),
+        ("student", "Estudiante"),
+        ("teacher", "Docente"),
+        ("admin", "Administrador"),
+        ("coordinator", "Coordinador"),
     )
 
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="student")
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -48,18 +48,8 @@ class User(AbstractUser):
         return self.email
 
 
-
-
-
-
-
-
-
 class StudentProfile(models.Model):
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE
-    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     student_code = models.CharField(max_length=20, unique=True)
     document_type = models.CharField(max_length=20, blank=True, null=True)
     document_number = models.CharField(max_length=30, blank=True, null=True)
@@ -67,22 +57,16 @@ class StudentProfile(models.Model):
     address = models.CharField(max_length=200, blank=True)
 
     program = models.ForeignKey(
-        'academic_core.AcademicProgram',
+        "academic_core.AcademicProgram",
         on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
     )
     faculty = models.ForeignKey(
-        'academic_core.Faculty',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
+        "academic_core.Faculty", on_delete=models.SET_NULL, null=True, blank=True
     )
     campus = models.ForeignKey(
-        'academic_core.Campus',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
+        "academic_core.Campus", on_delete=models.SET_NULL, null=True, blank=True
     )
 
     level = models.CharField(max_length=20, null=True, blank=True)

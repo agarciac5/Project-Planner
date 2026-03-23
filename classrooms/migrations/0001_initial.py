@@ -10,28 +10,61 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('academic_core', '0001_initial'),
+        ("academic_core", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TimeSlot',
+            name="TimeSlot",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('day', models.CharField(max_length=10)),
-                ('start_time', models.TimeField()),
-                ('end_time', models.TimeField()),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("day", models.CharField(max_length=10)),
+                ("start_time", models.TimeField()),
+                ("end_time", models.TimeField()),
             ],
         ),
         migrations.CreateModel(
-            name='Classroom',
+            name="Classroom",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('classroom_id', models.CharField(max_length=20, unique=True)),
-                ('name', models.CharField(blank=True, max_length=100)),
-                ('block', models.PositiveSmallIntegerField(validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)], verbose_name='bloque')),
-                ('is_active', models.BooleanField(default=True, verbose_name='activo')),
-                ('campus', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='academic_core.campus')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("classroom_id", models.CharField(max_length=20, unique=True)),
+                ("name", models.CharField(blank=True, max_length=100)),
+                (
+                    "block",
+                    models.PositiveSmallIntegerField(
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(5),
+                        ],
+                        verbose_name="bloque",
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="activo")),
+                (
+                    "campus",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="academic_core.campus",
+                    ),
+                ),
             ],
         ),
     ]

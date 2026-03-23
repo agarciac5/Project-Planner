@@ -8,77 +8,186 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='AcademicTerm',
+            name="AcademicTerm",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=50)),
-                ('start_date', models.DateField()),
-                ('end_date', models.DateField()),
-                ('active', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=50)),
+                ("start_date", models.DateField()),
+                ("end_date", models.DateField()),
+                ("active", models.BooleanField(default=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Campus',
+            name="Campus",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
             ],
         ),
         migrations.CreateModel(
-            name='Course',
+            name="Course",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('code', models.CharField(max_length=20, unique=True)),
-                ('credits', models.IntegerField(default=0)),
-                ('semester', models.PositiveIntegerField(default=1)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                ("code", models.CharField(max_length=20, unique=True)),
+                ("credits", models.IntegerField(default=0)),
+                ("semester", models.PositiveIntegerField(default=1)),
             ],
         ),
         migrations.CreateModel(
-            name='CourseGroup',
+            name="CourseGroup",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('group_number', models.IntegerField()),
-                ('capacity', models.IntegerField(default=30)),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='groups', to='academic_core.course')),
-                ('term', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='academic_core.academicterm')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("group_number", models.IntegerField()),
+                ("capacity", models.IntegerField(default=30)),
+                (
+                    "course",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="groups",
+                        to="academic_core.course",
+                    ),
+                ),
+                (
+                    "term",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="academic_core.academicterm",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Faculty',
+            name="Faculty",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('campus', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='faculties', to='academic_core.campus')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                (
+                    "campus",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="faculties",
+                        to="academic_core.campus",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='AcademicProgram',
+            name="AcademicProgram",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('code', models.CharField(blank=True, max_length=20, null=True, unique=True)),
-                ('campus', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='programs', to='academic_core.campus')),
-                ('faculty', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='programs', to='academic_core.faculty')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                (
+                    "code",
+                    models.CharField(blank=True, max_length=20, null=True, unique=True),
+                ),
+                (
+                    "campus",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="programs",
+                        to="academic_core.campus",
+                    ),
+                ),
+                (
+                    "faculty",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="programs",
+                        to="academic_core.faculty",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='StudyPlan',
+            name="StudyPlan",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('version', models.CharField(max_length=20)),
-                ('description', models.TextField(blank=True)),
-                ('program', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='study_plans', to='academic_core.academicprogram')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("version", models.CharField(max_length=20)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "program",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="study_plans",
+                        to="academic_core.academicprogram",
+                    ),
+                ),
             ],
         ),
         migrations.AddField(
-            model_name='course',
-            name='study_plan',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='courses', to='academic_core.studyplan'),
+            model_name="course",
+            name="study_plan",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="courses",
+                to="academic_core.studyplan",
+            ),
         ),
     ]

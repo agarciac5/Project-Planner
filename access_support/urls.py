@@ -21,21 +21,39 @@ from .views import (
     settings_view,
 )
 from .crud_views import (
-    CampusListView, CampusCreateView, CampusUpdateView, CampusDeleteView,
-    FacultyListView, FacultyCreateView, FacultyUpdateView, FacultyDeleteView,
-    ProgramListView, ProgramCreateView, ProgramUpdateView, ProgramDeleteView,
-    CourseListView, CourseCreateView, CourseUpdateView, CourseDeleteView,
-    StudentListView, StudentCreateView, StudentUpdateView, StudentDeleteView,
-    ClassroomListView, ClassroomCreateView, ClassroomUpdateView, ClassroomDeleteView,
+    CampusListView,
+    CampusCreateView,
+    CampusUpdateView,
+    CampusDeleteView,
+    FacultyListView,
+    FacultyCreateView,
+    FacultyUpdateView,
+    FacultyDeleteView,
+    ProgramListView,
+    ProgramCreateView,
+    ProgramUpdateView,
+    ProgramDeleteView,
+    CourseListView,
+    CourseCreateView,
+    CourseUpdateView,
+    CourseDeleteView,
+    StudentListView,
+    StudentCreateView,
+    StudentUpdateView,
+    StudentDeleteView,
+    ClassroomListView,
+    ClassroomCreateView,
+    ClassroomUpdateView,
+    ClassroomDeleteView,
     StudyPlanListView,
 )
+
 urlpatterns = [
-    path('import/', import_view, name='import'),
+    path("import/", import_view, name="import"),
     path("login/", login_view, name="login"),
-    path('register/', register_view, name='register'),
+    path("register/", register_view, name="register"),
     path("logout/", logout_view, name="logout"),
     path("", dashboard, name="home"),
-
     path("calendario/", calendar_view, name="calendar"),
     path("generar-horario/", add_calendar_view, name="add_calendar"),
     path("materias/", subjects_view, name="subjects"),
@@ -55,32 +73,51 @@ urlpatterns = [
     path("sedes/crear/", CampusCreateView.as_view(), name="campus_create"),
     path("sedes/<int:pk>/editar/", CampusUpdateView.as_view(), name="campus_edit"),
     path("sedes/<int:pk>/eliminar/", CampusDeleteView.as_view(), name="campus_delete"),
-
     path("facultades/", FacultyListView.as_view(), name="faculty_list"),
     path("facultades/crear/", FacultyCreateView.as_view(), name="faculty_create"),
-    path("facultades/<int:pk>/editar/", FacultyUpdateView.as_view(), name="faculty_edit"),
-    path("facultades/<int:pk>/eliminar/", FacultyDeleteView.as_view(), name="faculty_delete"),
-
+    path(
+        "facultades/<int:pk>/editar/", FacultyUpdateView.as_view(), name="faculty_edit"
+    ),
+    path(
+        "facultades/<int:pk>/eliminar/",
+        FacultyDeleteView.as_view(),
+        name="faculty_delete",
+    ),
     path("programas/", ProgramListView.as_view(), name="program_list"),
     path("programas/crear/", ProgramCreateView.as_view(), name="program_create"),
-    path("programas/<int:pk>/editar/", ProgramUpdateView.as_view(), name="program_edit"),
-    path("programas/<int:pk>/eliminar/", ProgramDeleteView.as_view(), name="program_delete"),
-
+    path(
+        "programas/<int:pk>/editar/", ProgramUpdateView.as_view(), name="program_edit"
+    ),
+    path(
+        "programas/<int:pk>/eliminar/",
+        ProgramDeleteView.as_view(),
+        name="program_delete",
+    ),
     path("materias/", CourseListView.as_view(), name="course_list"),
     path("materias/crear/", CourseCreateView.as_view(), name="course_create"),
     path("materias/<int:pk>/editar/", CourseUpdateView.as_view(), name="course_edit"),
-    path("materias/<int:pk>/eliminar/", CourseDeleteView.as_view(), name="course_delete"),
-
-
+    path(
+        "materias/<int:pk>/eliminar/", CourseDeleteView.as_view(), name="course_delete"
+    ),
     path("estudiantes/", StudentListView.as_view(), name="student_list"),
     path("estudiantes/crear/", StudentCreateView.as_view(), name="student_create"),
-    path("estudiantes/<int:pk>/editar/", StudentUpdateView.as_view(), name="student_edit"),
-    path("estudiantes/<int:pk>/eliminar/", StudentDeleteView.as_view(), name="student_delete"),
-
+    path(
+        "estudiantes/<int:pk>/editar/", StudentUpdateView.as_view(), name="student_edit"
+    ),
+    path(
+        "estudiantes/<int:pk>/eliminar/",
+        StudentDeleteView.as_view(),
+        name="student_delete",
+    ),
     path("aulas/", ClassroomListView.as_view(), name="classroom_list"),
     path("aulas/crear/", ClassroomCreateView.as_view(), name="classroom_create"),
-    path("aulas/<int:pk>/editar/", ClassroomUpdateView.as_view(), name="classroom_edit"),
-    path("aulas/<int:pk>/eliminar/", ClassroomDeleteView.as_view(), name="classroom_delete"),
-
+    path(
+        "aulas/<int:pk>/editar/", ClassroomUpdateView.as_view(), name="classroom_edit"
+    ),
+    path(
+        "aulas/<int:pk>/eliminar/",
+        ClassroomDeleteView.as_view(),
+        name="classroom_delete",
+    ),
     path("plan-estudios/", StudyPlanListView.as_view(), name="study_plan_list"),
 ]

@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth import authenticate
 
+
 class EmailLoginForm(forms.Form):
     email = forms.EmailField()
     password = forms.CharField(widget=forms.PasswordInput)

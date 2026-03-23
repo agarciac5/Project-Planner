@@ -9,36 +9,107 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('academic_core', '0001_initial'),
+        ("academic_core", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Teacher',
+            name="Teacher",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('teacher_id', models.CharField(max_length=20, unique=True)),
-                ('first_name', models.CharField(max_length=50)),
-                ('last_name', models.CharField(max_length=50)),
-                ('address', models.CharField(blank=True, max_length=200)),
-                ('type_of_contract', models.CharField(choices=[('Full-Time', 'Full-Time'), ('Half-Time', 'Half-Time')], default='Full-Time', max_length=20)),
-                ('is_active', models.BooleanField(default=True)),
-                ('campus', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='academic_core.campus')),
-                ('faculty', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='academic_core.faculty')),
-                ('program', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='academic_core.academicprogram')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("teacher_id", models.CharField(max_length=20, unique=True)),
+                ("first_name", models.CharField(max_length=50)),
+                ("last_name", models.CharField(max_length=50)),
+                ("address", models.CharField(blank=True, max_length=200)),
+                (
+                    "type_of_contract",
+                    models.CharField(
+                        choices=[
+                            ("Full-Time", "Full-Time"),
+                            ("Half-Time", "Half-Time"),
+                        ],
+                        default="Full-Time",
+                        max_length=20,
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "campus",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="academic_core.campus",
+                    ),
+                ),
+                (
+                    "faculty",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="academic_core.faculty",
+                    ),
+                ),
+                (
+                    "program",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="academic_core.academicprogram",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Availability',
+            name="Availability",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('day', models.CharField(choices=[('Monday', 'Monday'), ('Tuesday', 'Tuesday'), ('Wednesday', 'Wednesday'), ('Thursday', 'Thursday'), ('Friday', 'Friday'), ('Saturday', 'Saturday'), ('Sunday', 'Sunday')], max_length=10)),
-                ('start_time', models.TimeField()),
-                ('end_time', models.TimeField()),
-                ('teacher', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='availabilities', to='teaching.teacher')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "day",
+                    models.CharField(
+                        choices=[
+                            ("Monday", "Monday"),
+                            ("Tuesday", "Tuesday"),
+                            ("Wednesday", "Wednesday"),
+                            ("Thursday", "Thursday"),
+                            ("Friday", "Friday"),
+                            ("Saturday", "Saturday"),
+                            ("Sunday", "Sunday"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
+                ("start_time", models.TimeField()),
+                ("end_time", models.TimeField()),
+                (
+                    "teacher",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="availabilities",
+                        to="teaching.teacher",
+                    ),
+                ),
             ],
             options={
-                'unique_together': {('teacher', 'day', 'start_time', 'end_time')},
+                "unique_together": {("teacher", "day", "start_time", "end_time")},
             },
         ),
     ]

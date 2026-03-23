@@ -7,15 +7,9 @@ class Classroom(models.Model):
     classroom_id = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=100, blank=True)
     block = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)],
-        verbose_name="bloque"
+        validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="bloque"
     )
-    campus = models.ForeignKey(
-        Campus,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
+    campus = models.ForeignKey(Campus, on_delete=models.SET_NULL, null=True, blank=True)
     is_active = models.BooleanField(default=True, verbose_name="activo")
 
     def __str__(self):

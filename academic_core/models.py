@@ -15,7 +15,7 @@ class Faculty(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="faculties"
+        related_name="faculties",
     )
 
     def __str__(self):
@@ -30,14 +30,14 @@ class AcademicProgram(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="programs"
+        related_name="programs",
     )
     campus = models.ForeignKey(
         Campus,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="programs"
+        related_name="programs",
     )
 
     def __str__(self):
@@ -56,9 +56,7 @@ class AcademicTerm(models.Model):
 
 class StudyPlan(models.Model):
     program = models.ForeignKey(
-        AcademicProgram,
-        on_delete=models.CASCADE,
-        related_name="study_plans"
+        AcademicProgram, on_delete=models.CASCADE, related_name="study_plans"
     )
     version = models.CharField(max_length=20)
     description = models.TextField(blank=True)
@@ -74,9 +72,7 @@ class Course(models.Model):
     semester = models.PositiveIntegerField(default=1)
 
     study_plan = models.ForeignKey(
-        StudyPlan,
-        on_delete=models.CASCADE,
-        related_name="courses"
+        StudyPlan, on_delete=models.CASCADE, related_name="courses"
     )
 
     def __str__(self):
@@ -84,15 +80,8 @@ class Course(models.Model):
 
 
 class CourseGroup(models.Model):
-    course = models.ForeignKey(
-        Course,
-        on_delete=models.CASCADE,
-        related_name="groups"
-    )
-    term = models.ForeignKey(
-        AcademicTerm,
-        on_delete=models.CASCADE
-    )
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="groups")
+    term = models.ForeignKey(AcademicTerm, on_delete=models.CASCADE)
     group_number = models.IntegerField()
     capacity = models.IntegerField(default=30)
 

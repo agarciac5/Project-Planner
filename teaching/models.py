@@ -18,27 +18,14 @@ class Teacher(models.Model):
     last_name = models.CharField(max_length=50)
     address = models.CharField(max_length=200, blank=True)
     program = models.ForeignKey(
-        AcademicProgram,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
+        AcademicProgram, on_delete=models.SET_NULL, null=True, blank=True
     )
     faculty = models.ForeignKey(
-        Faculty,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
+        Faculty, on_delete=models.SET_NULL, null=True, blank=True
     )
-    campus = models.ForeignKey(
-        Campus,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
+    campus = models.ForeignKey(Campus, on_delete=models.SET_NULL, null=True, blank=True)
     type_of_contract = models.CharField(
-        max_length=20,
-        choices=CONTRACT_TYPES,
-        default="Full-Time"
+        max_length=20, choices=CONTRACT_TYPES, default="Full-Time"
     )
     is_active = models.BooleanField(default=True)
 
@@ -66,9 +53,7 @@ class Availability(models.Model):
     ]
 
     teacher = models.ForeignKey(
-        Teacher,
-        on_delete=models.CASCADE,
-        related_name="availabilities"
+        Teacher, on_delete=models.CASCADE, related_name="availabilities"
     )
     day = models.CharField(max_length=10, choices=DAYS_OF_WEEK)
     start_time = models.TimeField()

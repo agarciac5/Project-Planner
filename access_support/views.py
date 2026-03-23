@@ -5,7 +5,6 @@ from .login import EmailLoginForm
 
 from academic_core.models import Campus, Faculty, AcademicProgram, Course, StudyPlan
 from classrooms.models import Classroom
-from .models import StudentProfile
 
 
 import pandas as pd
@@ -13,7 +12,7 @@ import random
 import string
 from django.contrib import messages
 from .models import User, StudentProfile
-
+from django.contrib.auth import logout
 
 
 SCHEDULE_ROWS = [
@@ -21,7 +20,14 @@ SCHEDULE_ROWS = [
     ("6:30 am", "", "", "Tópicos Especiales", "", ""),
     ("7:00 am", "", "Inglés B2", "Tópicos Especiales", "", ""),
     ("8:00 am", "Cálculo Diferencial", "Inglés B2", "", "", "Cálculo Diferencial"),
-    ("8:30 am", "Cálculo Diferencial", "", "", "Programación Web", "Cálculo Diferencial"),
+    (
+        "8:30 am",
+        "Cálculo Diferencial",
+        "",
+        "",
+        "Programación Web",
+        "Cálculo Diferencial",
+    ),
     ("9:00 am", "", "Bases de Datos", "", "Programación Web", ""),
     ("10:30 am", "Telemática", "", "Telemática", "", ""),
     ("11:00 am", "Telemática", "", "Telemática", "", ""),
@@ -182,26 +188,80 @@ STUDY_PLANS = [
     {
         "programa": "Ingeniería de Software",
         "semestres": [
-            {"numero": 1, "materias": ["Cálculo Diferencial", "Introducción a la Programación", "Competencias Comunicativas"]},
-            {"numero": 2, "materias": ["Álgebra Lineal", "Programación Orientada a Objetos", "Inglés I"]},
-            {"numero": 3, "materias": ["Bases de Datos", "Estructuras de Datos", "Inglés II"]},
-            {"numero": 4, "materias": ["Programación Web", "Arquitectura de Software", "Investigación I"]},
+            {
+                "numero": 1,
+                "materias": [
+                    "Cálculo Diferencial",
+                    "Introducción a la Programación",
+                    "Competencias Comunicativas",
+                ],
+            },
+            {
+                "numero": 2,
+                "materias": [
+                    "Álgebra Lineal",
+                    "Programación Orientada a Objetos",
+                    "Inglés I",
+                ],
+            },
+            {
+                "numero": 3,
+                "materias": ["Bases de Datos", "Estructuras de Datos", "Inglés II"],
+            },
+            {
+                "numero": 4,
+                "materias": [
+                    "Programación Web",
+                    "Arquitectura de Software",
+                    "Investigación I",
+                ],
+            },
         ],
     },
     {
         "programa": "Ingeniería de Redes",
         "semestres": [
-            {"numero": 1, "materias": ["Lógica", "Electrónica Básica", "Competencias Digitales"]},
-            {"numero": 2, "materias": ["Telemática", "Fundamentos de Redes", "Inglés I"]},
-            {"numero": 3, "materias": ["Protocolos de Comunicación", "Seguridad Informática", "Inglés II"]},
+            {
+                "numero": 1,
+                "materias": ["Lógica", "Electrónica Básica", "Competencias Digitales"],
+            },
+            {
+                "numero": 2,
+                "materias": ["Telemática", "Fundamentos de Redes", "Inglés I"],
+            },
+            {
+                "numero": 3,
+                "materias": [
+                    "Protocolos de Comunicación",
+                    "Seguridad Informática",
+                    "Inglés II",
+                ],
+            },
         ],
     },
     {
         "programa": "Análisis de Datos",
         "semestres": [
-            {"numero": 1, "materias": ["Matemática Básica", "Herramientas Ofimáticas", "Comunicación Escrita"]},
-            {"numero": 2, "materias": ["Estadística", "Bases de Datos", "Visualización de Datos"]},
-            {"numero": 3, "materias": ["Minería de Datos", "Machine Learning", "Analítica de Negocio"]},
+            {
+                "numero": 1,
+                "materias": [
+                    "Matemática Básica",
+                    "Herramientas Ofimáticas",
+                    "Comunicación Escrita",
+                ],
+            },
+            {
+                "numero": 2,
+                "materias": ["Estadística", "Bases de Datos", "Visualización de Datos"],
+            },
+            {
+                "numero": 3,
+                "materias": [
+                    "Minería de Datos",
+                    "Machine Learning",
+                    "Analítica de Negocio",
+                ],
+            },
         ],
     },
 ]
@@ -251,9 +311,6 @@ def login_view(request):
     return render(request, "access_support/login.html", {"form": form})
 
 
-
-
-
 def calendar_view(request):
     context = _base_context(request)
     return render(request, "scheduling/schedule.html", context)
@@ -272,7 +329,6 @@ def subjects_view(request):
 
 def create_subject_view(request):
     context = _base_context(request)
-
 
     context["classrooms_db"] = Classroom.objects.all().order_by("classroom_id")
     context["programs_db"] = AcademicProgram.objects.all().order_by("name")
@@ -311,9 +367,6 @@ def added_success_view(request):
     return render(request, "dashboard/success.html", context)
 
 
-
-
-
 def students_view(request):
     context = _base_context(request)
     context["items"] = StudentProfile.objects.all().order_by("id")
@@ -349,7 +402,9 @@ def study_plan_view(request):
     selected_program = request.GET.get("program")
 
     if selected_program:
-        filtered_plans = [plan for plan in STUDY_PLANS if plan["programa"] == selected_program]
+        filtered_plans = [
+            plan for plan in STUDY_PLANS if plan["programa"] == selected_program
+        ]
     else:
         filtered_plans = STUDY_PLANS
 
@@ -361,7 +416,7 @@ def study_plan_view(request):
 
 def generar_password(longitud=10):
     caracteres = string.ascii_letters + string.digits
-    return ''.join(random.sample(caracteres, longitud))
+    return "".join(random.sample(caracteres, longitud))
 
 
 def import_view(request):
@@ -397,18 +452,18 @@ def import_view(request):
                 "ingeniería industrial",
                 "ingenieria industrial",
                 "ingeniería de software",
-                "ingenieria de software"
+                "ingenieria de software",
             ]:
                 continue
-         
+
             if User.objects.filter(email=email).exists():
                 continue
             try:
                 password = generar_password()
 
                 user, created = User.objects.get_or_create(
-                    email=email, 
-                    defaults={"role": "student" })
+                    email=email, defaults={"role": "student"}
+                )
 
                 if created:
                     user.set_password(password)
@@ -421,42 +476,34 @@ def import_view(request):
 
                 faculty, _ = Faculty.objects.get_or_create(
                     name=str(row.get("DESCRIPCION_FACULTAD", "")).strip(),
-                    defaults={"campus": campus}
+                    defaults={"campus": campus},
                 )
 
                 program, _ = AcademicProgram.objects.get_or_create(
                     name=str(row.get("DESCRIPCION_PROGRAMA", "")).strip(),
-                    defaults={
-                        "faculty": faculty,
-                        "campus": campus
-                    }
+                    defaults={"faculty": faculty, "campus": campus},
                 )
-                
+
                 StudentProfile.objects.create(
                     user=user,
                     student_code=str(row.get("CODIGO", "")),
                     document_type=str(row.get("TIPO_DOCUMENTO", "")),
                     document_number=str(row.get("NUM_DOCUMENTO", "")),
                     full_name=str(row.get("NOMBRES", "")),
-
                     campus=campus,
                     faculty=faculty,
                     program=program,
                     level=str(row.get("DESCRIPCION_NIVEL", "")),
                     jornada=str(row.get("JORNADA", "")),
-                    address=""
+                    address="",
                 )
 
-                resultados.append({
-                    "email": email,
-                    "password": password
-                })
+                resultados.append({"email": email, "password": password})
 
                 emails_procesados.add(email)
 
             except Exception:
                 continue
-            
 
         context["resultados"] = resultados
         context["success_message"] = f"Se crearon {len(resultados)} usuarios"
@@ -474,7 +521,6 @@ def settings_view(request):
     return render(request, "dashboard/settings.html", context)
 
 
-
 def register_view(request):
 
     if request.user.is_authenticated:
@@ -487,8 +533,10 @@ def register_view(request):
 
         # Validación
         if not email.endswith("@uniminuto.edu.co"):
-         messages.error(request, "Solo se permiten correos institucionales (@uniminuto.edu.co)")
-         return render(request, "access_support/register.html")
+            messages.error(
+                request, "Solo se permiten correos institucionales (@uniminuto.edu.co)"
+            )
+            return render(request, "access_support/register.html")
 
         if password != confirm:
             messages.error(request, "Las contraseñas no coinciden")
@@ -501,9 +549,7 @@ def register_view(request):
         try:
             # Crear usuario
             user = User.objects.create_user(
-                email=email,
-                password=password,
-                role="student"  # por defecto
+                email=email, password=password, role="student"  # por defecto
             )
 
             messages.success(request, "Usuario creado correctamente")
@@ -515,7 +561,6 @@ def register_view(request):
 
     return render(request, "access_support/register.html")
 
-from django.contrib.auth import logout
 
 def logout_view(request):
     logout(request)
