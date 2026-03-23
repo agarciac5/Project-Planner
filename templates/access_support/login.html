@@ -1,0 +1,66 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Login | ITM Planner{% endblock %}
+
+{% block page_class %}page-centered{% endblock %}
+
+{% block content %}
+<div class="login-layout">
+
+    <!-- LADO IZQUIERDO -->
+    <div class="login-copy">
+        <h2>Bienvenido</h2>
+        <p>Ingresa para acceder a tu planner académico.</p>
+
+        <div class="bullet-list">
+            <span>✔ Gestiona tu horario</span>
+            <span>✔ Organiza tus materias</span>
+            <span>✔ Visualiza tu progreso</span>
+        </div>
+    </div>
+
+    <!-- LADO DERECHO -->
+    <div class="card login-card">
+
+        <h2>Iniciar sesión</h2>
+
+        <!-- ERRORES DEL FORM -->
+        {% if form.errors %}
+            <div class="alert-danger">
+                Credenciales incorrectas
+            </div>
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-grid">
+
+                <div class="field">
+                    <label>Correo electrónico</label>
+                    {{ form.email }}
+                </div>
+
+                <div class="field">
+                    <label>Contraseña</label>
+                    {{ form.password }}
+                </div>
+
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                Ingresar
+            </button>
+        </form>
+
+        <p style="margin-top: 16px; text-align: center;">
+            ¿No tienes cuenta?
+            <a href="{% url 'register' %}" style="color: var(--primary); font-weight: 700;">
+                Regístrate
+            </a>
+        </p>
+
+    </div>
+
+</div>
+{% endblock %}

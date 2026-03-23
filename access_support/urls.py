@@ -4,6 +4,8 @@ from .views import (
     login_view,
     calendar_view,
     add_calendar_view,
+    logout_view,
+    register_view,
     subjects_view,
     create_subject_view,
     subject_detail_view,
@@ -30,6 +32,8 @@ from .crud_views import (
 urlpatterns = [
     path('import/', import_view, name='import'),
     path("login/", login_view, name="login"),
+    path('register/', register_view, name='register'),
+    path("logout/", logout_view, name="logout"),
     path("", dashboard, name="home"),
 
     path("calendario/", calendar_view, name="calendar"),

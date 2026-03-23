@@ -472,3 +472,51 @@ def profile_view(request):
 def settings_view(request):
     context = _base_context(request)
     return render(request, "dashboard/settings.html", context)
+
+
+
+def register_view(request):
+
+    if request.user.is_authenticated:
+        return redirect("home")
+
+    if request.method == "POST":
+        email = request.POST.get("email")
+        password = request.POST.get("password")
+        confirm = request.POST.get("confirm")
+
+        # Validación
+        if not email.endswith("@uniminuto.edu.co"):
+         messages.error(request, "Solo se permiten correos institucionales (@uniminuto.edu.co)")
+         return render(request, "access_support/register.html")
+
+        if password != confirm:
+            messages.error(request, "Las contraseñas no coinciden")
+            return redirect("register")
+
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "El correo ya está registrado")
+            return redirect("register")
+
+        try:
+            # Crear usuario
+            user = User.objects.create_user(
+                email=email,
+                password=password,
+                role="student"  # por defecto
+            )
+
+            messages.success(request, "Usuario creado correctamente")
+            return redirect("login")
+
+        except Exception:
+            messages.error(request, "Error al crear el usuario")
+            return redirect("register")
+
+    return render(request, "access_support/register.html")
+
+from django.contrib.auth import logout
+
+def logout_view(request):
+    logout(request)
+    return redirect("login")
