@@ -1,7 +1,43 @@
+# views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import Teacher, Availability
-from academic_core.models import AcademicProgram, Faculty, Campus
+from access_support.forms import TeacherForm
+
+# Vista para listar docentes
+def teachers_view(request):
+    teachers = Teacher.objects.all().order_by("id")
+    return render(request, "dashboard/teachers.html", {"items": teachers})
+
+# Vista para crear docente usando el formulario genérico
+def teacher_create_view(request):
+    if request.method == "POST":
+        form = TeacherForm(request.POST)
+        if form.is_valid():
+            teacher = form.save()  # Crea el docente automáticamente
+
+            # Opcional: agregar disponibilidad si se envió
+            day = request.POST.get("day")
+            start_time = request.POST.get("start_time")
+            end_time = request.POST.get("end_time")
+            if day and start_time and end_time:
+                Availability.objects.create(
+                    teacher=teacher,
+                    day=day,
+                    start_time=start_time,
+                    end_time=end_time
+                )
+
+            messages.success(request, "Docente creado correctamente con disponibilidad")
+            return redirect("teacher_list")
+    else:
+        form = TeacherForm()
+
+    return render(request, "crud/form.html", {
+        "form": form
+    })
+
+# Vista para agregar disponibilidad de un docente existente
 def add_availability(request, teacher_id):
     if request.method == "POST":
         teacher = get_object_or_404(Teacher, id=teacher_id)
@@ -9,55 +45,6 @@ def add_availability(request, teacher_id):
         start_time = request.POST.get("start_time")
         end_time = request.POST.get("end_time")
 
-        
-        Availability.objects.create(
-            teacher=teacher,
-            day=day,
-            start_time=start_time,
-            end_time=end_time
-        )
-    
-    return redirect("teacher_list")
-
-def teachers_view(request):
-    teachers = Teacher.objects.all().order_by("id")
-    return render(request, "dashboard/teachers.html", {"items": teachers})
-
-
-def teacher_create_view(request):
-    programs = AcademicProgram.objects.all()
-    faculties = Faculty.objects.all()
-    campuses = Campus.objects.all()
-
-    if request.method == "POST":
-        teacher_id = request.POST.get("teacher_id")
-        first_name = request.POST.get("first_name")
-        last_name = request.POST.get("last_name")
-        address = request.POST.get("address")
-        program_id = request.POST.get("program")
-        faculty_id = request.POST.get("faculty")
-        campus_id = request.POST.get("campus")
-        type_of_contract = request.POST.get("type_of_contract")
-
-        program = AcademicProgram.objects.get(id=program_id) if program_id else None
-        faculty = Faculty.objects.get(id=faculty_id) if faculty_id else None
-        campus = Campus.objects.get(id=campus_id) if campus_id else None
-
-        teacher = Teacher.objects.create(
-            teacher_id=teacher_id,
-            first_name=first_name,
-            last_name=last_name,
-            address=address,
-            program=program,
-            faculty=faculty,
-            campus=campus,
-            type_of_contract=type_of_contract
-        )
-
-        
-        day = request.POST.get("day")
-        start_time = request.POST.get("start_time")
-        end_time = request.POST.get("end_time")
         if day and start_time and end_time:
             Availability.objects.create(
                 teacher=teacher,
@@ -66,24 +53,15 @@ def teacher_create_view(request):
                 end_time=end_time
             )
 
-        messages.success(request, "Docente creado correctamente con disponibilidad")
-        return redirect("teachers_view")
+    return redirect("teacher_list")
 
-    return render(request, "dashboard/teacher_create.html", {
-        "programs": programs,
-        "faculties": faculties,
-        "campuses": campuses
-    })
-
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
-from .models import Teacher
-
+# Vista para editar docente (solo mensaje por ahora)
 def teacher_edit_view(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
     messages.info(request, f"Función editar docente {teacher_id} no implementada aún.")
     return redirect("teacher_list")
 
+# Vista para eliminar docente
 def teacher_delete_view(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
     teacher.delete()
