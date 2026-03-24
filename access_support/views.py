@@ -401,14 +401,40 @@ def study_plan_view(request):
     context = _base_context(request)
     selected_program = request.GET.get("program")
 
+    study_plans = (
+        StudyPlan.objects.select_related("program")
+        .prefetch_related("courses")
+        .order_by("program__name", "version")
+    )
+    programs = AcademicProgram.objects.order_by("name")
+
     if selected_program:
-        filtered_plans = [
-            plan for plan in STUDY_PLANS if plan["programa"] == selected_program
-        ]
-    else:
-        filtered_plans = STUDY_PLANS
+        study_plans = study_plans.filter(program__name=selected_program)
+
+    filtered_plans = []
+    for plan in study_plans:
+        semesters = []
+        courses_by_semester = {}
+        for course in plan.courses.all().order_by("semester", "name"):
+            courses_by_semester.setdefault(course.semester, []).append(course.name)
+
+        for semester_number, course_names in courses_by_semester.items():
+            semesters.append(
+                {
+                    "numero": semester_number,
+                    "materias": course_names,
+                }
+            )
+
+        filtered_plans.append(
+            {
+                "programa": plan.program.name,
+                "semestres": semesters,
+            }
+        )
 
     context["selected_program"] = selected_program
+    context["programs"] = programs
     context["filtered_plans"] = filtered_plans
     context["items"] = StudyPlan.objects.all().order_by("id")
     return render(request, "dashboard/study_plan.html", context)

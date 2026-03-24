@@ -15,7 +15,7 @@
             <select name="program" onchange="this.form.submit()">
                 <option value="">Todos los programas</option>
                 {% for item in programs %}
-                <option value="{{ item.nombre }}" {% if selected_program == item.nombre %}selected{% endif %}>{{ item.nombre }}</option>
+                <option value="{{ item.name }}" {% if selected_program == item.name %}selected{% endif %}>{{ item.name }}</option>
                 {% endfor %}
             </select>
         </label>
