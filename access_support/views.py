@@ -15,23 +15,6 @@ from .models import User, StudentProfile
 from django.contrib.auth import logout
 
 
-SCHEDULE_ROWS = [
-    ("6:00 am", "", "", "Tópicos Especiales", "", ""),
-    ("6:30 am", "", "", "Tópicos Especiales", "", ""),
-    ("7:00 am", "", "Inglés B2", "Tópicos Especiales", "", ""),
-    ("8:00 am", "Cálculo Diferencial", "Inglés B2", "", "", "Cálculo Diferencial"),
-    (
-        "8:30 am",
-        "Cálculo Diferencial",
-        "",
-        "",
-        "Programación Web",
-        "Cálculo Diferencial",
-    ),
-    ("9:00 am", "", "Bases de Datos", "", "Programación Web", ""),
-    ("10:30 am", "Telemática", "", "Telemática", "", ""),
-    ("11:00 am", "Telemática", "", "Telemática", "", ""),
-]
 
 SUBJECT_OPTIONS = [
     {
@@ -278,7 +261,6 @@ def _base_context(request):
     user_name = request.user.email if request.user.is_authenticated else "Invitado"
     return {
         "user_name": user_name,
-        "schedule_rows": SCHEDULE_ROWS,
         "subject_options": SUBJECT_OPTIONS,
         "teachers": TEACHERS,
         "students": STUDENTS,
@@ -317,8 +299,7 @@ def calendar_view(request):
 
 
 def add_calendar_view(request):
-    context = _base_context(request)
-    return render(request, "dashboard/add_calendar.html", context)
+    return redirect("generate_schedule")
 
 
 def subjects_view(request):

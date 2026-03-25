@@ -2,17 +2,20 @@ from django.db import models
 from academic_core.models import AcademicProgram, Faculty, Campus
 
 
+class ContractRule(models.Model):
+    """Define los límites de horas por tipo de contrato sin hardcodear."""
+    contract_type = models.CharField(max_length=20, unique=True)
+    min_teaching_hours = models.PositiveSmallIntegerField()
+    max_teaching_hours = models.PositiveSmallIntegerField()
+    max_advisory_hours = models.PositiveSmallIntegerField(default=0)
+    max_research_hours = models.PositiveSmallIntegerField(default=0)
+    max_total_hours = models.PositiveSmallIntegerField()
+
+    def __str__(self):
+        return self.contract_type
+
+
 class Teacher(models.Model):
-    CONTRACT_TYPES = [
-        ("Full-Time", "Full-Time"),
-        ("Half-Time", "Half-Time"),
-    ]
-
-    HOURS_BY_CONTRACT = {
-        "Full-Time": (10, 20),
-        "Half-Time": (5, 10),
-    }
-
     teacher_id = models.CharField(max_length=20, unique=True)
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -23,19 +26,18 @@ class Teacher(models.Model):
     faculty = models.ForeignKey(
         Faculty, on_delete=models.SET_NULL, null=True, blank=True
     )
-    campus = models.ForeignKey(Campus, on_delete=models.SET_NULL, null=True, blank=True)
-    type_of_contract = models.CharField(
-        max_length=20, choices=CONTRACT_TYPES, default="Full-Time"
+    campus = models.ForeignKey(
+        Campus, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    contract = models.ForeignKey(
+        ContractRule, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    qualified_courses = models.ManyToManyField(
+        "academic_core.Course",
+        blank=True,
+        related_name="qualified_teachers"
     )
     is_active = models.BooleanField(default=True)
-
-    @property
-    def min_hours_per_week(self):
-        return self.HOURS_BY_CONTRACT[self.type_of_contract][0]
-
-    @property
-    def max_hours_per_week(self):
-        return self.HOURS_BY_CONTRACT[self.type_of_contract][1]
 
     def __str__(self):
         return f"{self.teacher_id} - {self.first_name} {self.last_name}"
@@ -43,13 +45,13 @@ class Teacher(models.Model):
 
 class Availability(models.Model):
     DAYS_OF_WEEK = [
-        ("Monday", "Monday"),
-        ("Tuesday", "Tuesday"),
-        ("Wednesday", "Wednesday"),
-        ("Thursday", "Thursday"),
-        ("Friday", "Friday"),
-        ("Saturday", "Saturday"),
-        ("Sunday", "Sunday"),
+        ("Monday", "Lunes"),
+        ("Tuesday", "Martes"),
+        ("Wednesday", "Miércoles"),
+        ("Thursday", "Jueves"),
+        ("Friday", "Viernes"),
+        ("Saturday", "Sábado"),
+        ("Sunday", "Domingo"),
     ]
 
     teacher = models.ForeignKey(

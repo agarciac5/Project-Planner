@@ -46,7 +46,8 @@ class TeacherForm(forms.ModelForm):
             "program",
             "faculty",
             "campus",
-            "type_of_contract",
+            "contract",        # reemplaza type_of_contract
+            "qualified_courses",
             "is_active",
         ]
 
@@ -54,12 +55,22 @@ class TeacherForm(forms.ModelForm):
 class ClassroomForm(forms.ModelForm):
     class Meta:
         model = Classroom
-        fields = ["classroom_id", "name", "block", "campus", "is_active"]
+        fields = [
+            "classroom_id",
+            "name",
+            "block",
+            "campus",
+            "capacity",
+            "classroom_type",
+            "is_active",
+        ]
         labels = {
             "classroom_id": "Código aula",
             "name": "Nombre",
             "block": "Bloque",
             "campus": "Sede",
+            "capacity": "Capacidad",
+            "classroom_type": "Tipo de aula",
             "is_active": "Activo",
         }
 

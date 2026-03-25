@@ -65,12 +65,25 @@ class StudyPlan(models.Model):
         return f"{self.program} - Plan {self.version}"
 
 
+class CourseComponent(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+
 class Course(models.Model):
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=20, unique=True)
     credits = models.IntegerField(default=0)
     semester = models.PositiveIntegerField(default=1)
-
+    component = models.ForeignKey(
+        CourseComponent,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="courses",
+    )
     study_plan = models.ForeignKey(
         StudyPlan, on_delete=models.CASCADE, related_name="courses"
     )
@@ -81,7 +94,11 @@ class Course(models.Model):
 
 class CourseGroup(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="groups")
-    term = models.ForeignKey(AcademicTerm, on_delete=models.CASCADE)
+    term = models.ForeignKey(
+        AcademicTerm,
+        on_delete=models.CASCADE,
+        related_name="academic_course_groups",  # ← evita el choque
+    )
     group_number = models.IntegerField()
     capacity = models.IntegerField(default=30)
 
