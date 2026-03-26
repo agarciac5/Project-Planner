@@ -7,7 +7,11 @@
         <h2>Cargar documentos</h2>
     </div>
 </section>
-
+{% if messages %}
+    {% for message in messages %}
+        <p>{{ message }}</p>
+    {% endfor %}
+{% endif %}
 <section class="card import-card">
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
@@ -33,23 +37,4 @@
 </section>
 {% endblock %}
 
-{% if success_message %}
-    <p>{{ success_message }}</p>
-{% endif %}
 
-{% if resultados %}
-    <h3>Usuarios creados</h3>
-    <table border="1">
-        <tr>
-            <th>Email</th>
-            <th>Contraseña</th>
-        </tr>
-
-        {% for r in resultados %}
-        <tr>
-            <td>{{ r.email }}</td>
-            <td>{{ r.password }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-{% endif %}

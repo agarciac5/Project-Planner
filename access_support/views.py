@@ -453,14 +453,14 @@ def import_view(request):
 
         if not archivo:
             messages.error(request, "No se subió ningún archivo")
-            return render(request, "dashboard/import.html", context)
+            return redirect("import")
 
         try:
             df = pd.read_excel(archivo)
             df = df.drop_duplicates(subset=["CORREO_ESTUDIANTE"])
         except Exception:
             messages.error(request, "Error al leer el archivo Excel")
-            return render(request, "dashboard/import.html", context)
+            return redirect("import")
 
         emails_procesados = set()
         resultados = []
@@ -532,8 +532,8 @@ def import_view(request):
                 continue
 
         context["resultados"] = resultados
-        context["success_message"] = f"Se crearon {len(resultados)} usuarios"
-
+        messages.success(request, f"Datos importados correctamente. Se crearon {len(resultados)} usuarios")
+        return redirect("import")
     return render(request, "dashboard/import.html", context)
 
 
