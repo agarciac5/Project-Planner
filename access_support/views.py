@@ -13,6 +13,8 @@ import string
 from django.contrib import messages
 from .models import User, StudentProfile
 from django.contrib.auth import logout
+from django.db import IntegrityError
+from teaching.models import Teacher
 
 
 
@@ -313,6 +315,7 @@ def create_subject_view(request):
 
     context["classrooms_db"] = Classroom.objects.all().order_by("classroom_id")
     context["programs_db"] = AcademicProgram.objects.all().order_by("name")
+    context["teachers_db"] = Teacher.objects.all().order_by("first_name", "last_name")
 
     form_data = {}
 
@@ -330,7 +333,45 @@ def create_subject_view(request):
             "programa": request.POST.get("programa", ""),
             "descripcion": request.POST.get("descripcion", ""),
         }
-        context["success_message"] = "Materia diligenciada correctamente."
+
+        name = form_data["materia"].strip()
+        code = form_data["codigo"].strip()
+        program_id = form_data["programa"].strip()
+
+        if not name or not code or not program_id:
+            messages.error(
+                request,
+                "Debes completar al menos Materia, Código y Programa para guardar.",
+            )
+        else:
+            program = AcademicProgram.objects.filter(id=program_id).first()
+            if not program:
+                messages.error(request, "El programa seleccionado no existe.")
+            else:
+                study_plan = (
+                    StudyPlan.objects.filter(program=program).order_by("-version", "-id").first()
+                )
+                if not study_plan:
+                    messages.error(
+                        request,
+                        "El programa seleccionado no tiene plan de estudios asociado.",
+                    )
+                else:
+                    try:
+                        Course.objects.create(
+                            name=name,
+                            code=code,
+                            credits=0,
+                            semester=1,
+                            study_plan=study_plan,
+                        )
+                        messages.success(request, "Materia creada correctamente.")
+                        return redirect("subjects")
+                    except IntegrityError:
+                        messages.error(
+                            request,
+                            f"Ya existe una materia con el código '{code}'.",
+                        )
 
     context["form_data"] = form_data
     return render(request, "dashboard/create_subject.html", context)
