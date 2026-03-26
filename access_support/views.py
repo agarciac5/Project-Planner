@@ -320,10 +320,12 @@ def create_subject_view(request):
     form_data = {}
 
     if request.method == "POST":
+        context["error_message"] = ""
         form_data = {
             "id": request.POST.get("id", ""),
             "materia": request.POST.get("materia", ""),
             "codigo": request.POST.get("codigo", ""),
+            "creditos": request.POST.get("creditos", ""),
             "grupo": request.POST.get("grupo", ""),
             "docente": request.POST.get("docente", ""),
             "aula": request.POST.get("aula", ""),
@@ -337,40 +339,58 @@ def create_subject_view(request):
         name = form_data["materia"].strip()
         code = form_data["codigo"].strip()
         program_id = form_data["programa"].strip()
+        credits_raw = form_data["creditos"]
+        credits_clean = credits_raw.strip()
 
-        if not name or not code or not program_id:
-            messages.error(
-                request,
-                "Debes completar al menos Materia, Código y Programa para guardar.",
+        if (
+            (form_data["materia"] and not name)
+            or (form_data["codigo"] and not code)
+            or (credits_raw and not credits_clean)
+        ):
+            context["error_message"] = (
+                "Hay espacios en blanco no permitidos. Corrige los campos e intenta de nuevo."
             )
+        elif not name or not code or not program_id or not credits_clean:
+            context["error_message"] = (
+                "Debes completar Materia, Código, Créditos y Programa para guardar."
+            )
+        elif any(ch.isspace() for ch in code):
+            context["error_message"] = "El código del curso no puede tener espacios en blanco."
+        elif Course.objects.filter(code__iexact=code).exists():
+            context["error_message"] = f"Ya existe una materia con el código '{code}'."
         else:
             program = AcademicProgram.objects.filter(id=program_id).first()
             if not program:
-                messages.error(request, "El programa seleccionado no existe.")
+                context["error_message"] = "El programa seleccionado no existe."
             else:
                 study_plan = (
                     StudyPlan.objects.filter(program=program).order_by("-version", "-id").first()
                 )
                 if not study_plan:
-                    messages.error(
-                        request,
-                        "El programa seleccionado no tiene plan de estudios asociado.",
+                    context["error_message"] = (
+                        "El programa seleccionado no tiene plan de estudios asociado."
                     )
                 else:
                     try:
+                        credits = int(credits_clean)
+                        if credits < 0:
+                            raise ValueError
                         Course.objects.create(
                             name=name,
                             code=code,
-                            credits=0,
+                            credits=credits,
                             semester=1,
                             study_plan=study_plan,
                         )
                         messages.success(request, "Materia creada correctamente.")
                         return redirect("subjects")
+                    except ValueError:
+                        context["error_message"] = (
+                            "El número de créditos debe ser un entero mayor o igual a 0."
+                        )
                     except IntegrityError:
-                        messages.error(
-                            request,
-                            f"Ya existe una materia con el código '{code}'.",
+                        context["error_message"] = (
+                            f"Ya existe una materia con el código '{code}'."
                         )
 
     context["form_data"] = form_data
