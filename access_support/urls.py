@@ -1,4 +1,5 @@
 from django.urls import path
+from academic_core.views import study_plan_view
 from .views import (
     dashboard,
     login_view,
@@ -6,16 +7,8 @@ from .views import (
     add_calendar_view,
     logout_view,
     register_view,
-    subjects_view,
-    create_subject_view,
-    subject_detail_view,
-    added_success_view,
     students_view,
-    campuses_view,
-    faculties_view,
-    classrooms_view,
     programs_view,
-    study_plan_view,
     import_view,
     profile_view,
     settings_view,
@@ -33,18 +26,10 @@ from .crud_views import (
     ProgramCreateView,
     ProgramUpdateView,
     ProgramDeleteView,
-    CourseListView,
-    CourseCreateView,
-    CourseUpdateView,
-    CourseDeleteView,
     StudentListView,
     StudentCreateView,
     StudentUpdateView,
     StudentDeleteView,
-    ClassroomListView,
-    ClassroomCreateView,
-    ClassroomUpdateView,
-    ClassroomDeleteView,
     StudyPlanListView,
 )
 
@@ -56,14 +41,7 @@ urlpatterns = [
     path("", dashboard, name="home"),
     path("calendario/", calendar_view, name="calendar"),
     path("generar-horario/", add_calendar_view, name="add_calendar"),
-    path("materias/", subjects_view, name="subjects"),
-    path("materias/crear/", create_subject_view, name="create_subject"),
-    path("materia/", subject_detail_view, name="subject_detail"),
-    path("agregado-exito/", added_success_view, name="added_success"),
     path("estudiantes/", students_view, name="students"),
-    path("sedes/", campuses_view, name="campuses"),
-    path("facultades/", faculties_view, name="faculties"),
-    path("aulas/", classrooms_view, name="classrooms"),
     path("programas/", programs_view, name="programs"),
     path("plan-estudios/", study_plan_view, name="study_plan"),
     path("importar/", import_view, name="import"),
@@ -93,12 +71,7 @@ urlpatterns = [
         ProgramDeleteView.as_view(),
         name="program_delete",
     ),
-    path("materias/", CourseListView.as_view(), name="course_list"),
-    path("materias/crear/", CourseCreateView.as_view(), name="course_create"),
-    path("materias/<int:pk>/editar/", CourseUpdateView.as_view(), name="course_edit"),
-    path(
-        "materias/<int:pk>/eliminar/", CourseDeleteView.as_view(), name="course_delete"
-    ),
+  
     path("estudiantes/", StudentListView.as_view(), name="student_list"),
     path("estudiantes/crear/", StudentCreateView.as_view(), name="student_create"),
     path(
@@ -109,15 +82,6 @@ urlpatterns = [
         StudentDeleteView.as_view(),
         name="student_delete",
     ),
-    path("aulas/", ClassroomListView.as_view(), name="classroom_list"),
-    path("aulas/crear/", ClassroomCreateView.as_view(), name="classroom_create"),
-    path(
-        "aulas/<int:pk>/editar/", ClassroomUpdateView.as_view(), name="classroom_edit"
-    ),
-    path(
-        "aulas/<int:pk>/eliminar/",
-        ClassroomDeleteView.as_view(),
-        name="classroom_delete",
-    ),
+
     path("plan-estudios/", StudyPlanListView.as_view(), name="study_plan_list"),
 ]

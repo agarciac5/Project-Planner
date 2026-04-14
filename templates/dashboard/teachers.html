@@ -19,7 +19,6 @@
                 <table class="listing-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Código profesor</th>
                             <th>Nombre completo</th>
                             <th>Dirección</th>
@@ -32,7 +31,6 @@
                     <tbody>
                         {% for item in items %}
                         <tr>
-                            <td class="listing-main-text">{{ item.id }}</td>
                             <td>{{ item.teacher_id }}</td>
                             <td class="listing-main-text">{{ item.first_name }} {{ item.last_name }}</td>
                             <td class="listing-muted">{{ item.address|default:"-" }}</td>

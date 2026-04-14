@@ -19,7 +19,6 @@
                 <table class="listing-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Código</th>
                             <th>Nombre</th>
                             <th>Créditos</th>
@@ -30,8 +29,6 @@
                     </thead>
                     <tbody>
                         {% for item in items %}
-                        <tr>
-                            <td class="listing-main-text">{{ item.id }}</td>
                             <td>{{ item.code }}</td>
                             <td class="listing-main-text">{{ item.name }}</td>
                             <td>{{ item.credits }}</td>

@@ -19,7 +19,6 @@
                 <table class="listing-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Código aula</th>
                             <th>Nombre</th>
                             <th>Bloque</th>
@@ -30,7 +29,6 @@
                     <tbody>
                         {% for item in items %}
                         <tr>
-                            <td class="listing-main-text">{{ item.id }}</td>
                             <td>{{ item.classroom_id }}</td>
                             <td class="listing-main-text">{{ item.name|default:"-" }}</td>
                             <td>{{ item.block }}</td>

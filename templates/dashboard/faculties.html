@@ -19,7 +19,6 @@
                 <table class="listing-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Nombre</th>
                             <th>Sede</th>
                             <th>Acciones</th>
@@ -28,7 +27,6 @@
                     <tbody>
                         {% for item in items %}
                         <tr>
-                            <td class="listing-main-text">{{ item.id }}</td>
                             <td class="listing-main-text">{{ item.name }}</td>
                             <td>{{ item.campus|default:"-" }}</td>
                             <td>

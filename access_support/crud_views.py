@@ -10,7 +10,6 @@ from .forms import (
     FacultyForm,
     AcademicProgramForm,
     CourseForm,
-    StudyPlanForm,
     TeacherForm,
     ClassroomForm,
     StudentForm,
@@ -19,7 +18,7 @@ from .forms import (
 
 class CampusListView(ListView):
     model = Campus
-    template_name = "crud/campus_list.html"
+    template_name = "dashboard/campuses.html"
     context_object_name = "items"
 
 
@@ -45,7 +44,7 @@ class CampusDeleteView(DeleteView):
 
 class FacultyListView(ListView):
     model = Faculty
-    template_name = "crud/faculty_list.html"
+    template_name = "dashboard/faculties.html"
     context_object_name = "items"
 
 
@@ -97,7 +96,7 @@ class ProgramDeleteView(DeleteView):
 
 class CourseListView(ListView):
     model = Course
-    template_name = "crud/course_list.html"
+    template_name = "dashboard/subjects.html"
     context_object_name = "items"
 
 

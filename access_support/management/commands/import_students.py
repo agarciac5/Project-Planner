@@ -42,6 +42,7 @@ class Command(BaseCommand):
 
             StudentProfile.objects.create(
                 user=user,
+                email=email,
                 student_code=str(row["CODIGO"]),
                 document_type=str(row["TIPO_DOCUMENTO"]),
                 document_number=str(row["NUM_DOCUMENTO"]),

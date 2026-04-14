@@ -19,7 +19,6 @@
                 <table class="listing-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Nombre completo</th>
                             <th>Cédula</th>
                             <th>Código estudiante</th>
@@ -32,7 +31,6 @@
                     <tbody>
                         {% for item in items %}
                         <tr>
-                            <td class="listing-main-text">{{ item.id }}</td>
                             <td class="listing-main-text">{{ item.full_name|default:item.user.email }}</td>
                             <td>{{ item.document_number|default:"-" }}</td>
                             <td>{{ item.student_code|default:"-" }}</td>

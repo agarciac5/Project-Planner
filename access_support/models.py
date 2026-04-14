@@ -51,7 +51,7 @@ class User(AbstractUser):
 class StudentProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     student_code = models.CharField(max_length=20, unique=True)
-    document_type = models.CharField(max_length=20, blank=True, null=True)
+    document_type = models.CharField(max_length=30, blank=True, null=True)
     document_number = models.CharField(max_length=30, blank=True, null=True)
     full_name = models.CharField(max_length=120, blank=True)
     address = models.CharField(max_length=200, blank=True)
