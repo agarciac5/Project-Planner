@@ -4,29 +4,115 @@ from django.db import models
 class CourseGroup(models.Model):
     course = models.ForeignKey("academic_core.Course", on_delete=models.CASCADE)
     teacher = models.ForeignKey(
-        "teaching.Teacher", on_delete=models.SET_NULL, null=True
+        "teaching.Teacher", on_delete=models.SET_NULL, null=True, blank=True
     )
-    classroom = models.ForeignKey(
-        "classrooms.Classroom", on_delete=models.SET_NULL, null=True
+    term = models.ForeignKey(
+        "academic_core.AcademicTerm", on_delete=models.SET_NULL, null=True
     )
-    timeslot = models.ForeignKey(
-        "classrooms.TimeSlot", on_delete=models.SET_NULL, null=True
-    )
+    nrc = models.CharField(max_length=10, blank=True)
+    capacity = models.IntegerField(default=40)
+    is_virtual = models.BooleanField(default=False)
 
-    capacity = models.IntegerField(default=30)
+    class Meta:
+        verbose_name = "Grupo de horario"
+        verbose_name_plural = "Grupos de horario"
 
     def __str__(self):
-        return f"{self.course} - Group {self.id}"
+        return f"{self.course.code} - NRC {self.nrc}"
+
+
+class TeacherActivity(models.Model):
+    """Actividad extra del profesor: asesoría o investigación. Sin aula."""
+    ACTIVITY_TYPES = [
+        ("asesoria",      "Asesoría"),
+        ("investigacion", "Investigación"),
+    ]
+    DAYS = [
+        ("Monday",    "Lunes"),
+        ("Tuesday",   "Martes"),
+        ("Wednesday", "Miércoles"),
+        ("Thursday",  "Jueves"),
+        ("Friday",    "Viernes"),
+        ("Saturday",  "Sábado"),
+    ]
+    teacher = models.ForeignKey(
+        "teaching.Teacher", on_delete=models.CASCADE, related_name="activities"
+    )
+    term = models.ForeignKey(
+        "academic_core.AcademicTerm", on_delete=models.SET_NULL, null=True
+    )
+    activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPES)
+    day = models.CharField(max_length=10, choices=DAYS)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    class Meta:
+        verbose_name = "Actividad docente"
+        verbose_name_plural = "Actividades docentes"
+
+    @property
+    def duration_hours(self):
+        from datetime import datetime
+        s = datetime.combine(datetime.today(), self.start_time)
+        e = datetime.combine(datetime.today(), self.end_time)
+        return round((e - s).total_seconds() / 3600, 2)
+
+    def __str__(self):
+        return (f"{self.teacher} — {self.get_activity_type_display()} "
+                f"{self.get_day_display()} {self.start_time:%H:%M}-{self.end_time:%H:%M}")
+
+
+class ProposedSchedule(models.Model):
+    STATUS_CHOICES = [
+        ("draft",    "Borrador"),
+        ("approved", "Aprobado"),
+        ("rejected", "Rechazado"),
+    ]
+    teacher = models.ForeignKey(
+        "teaching.Teacher", on_delete=models.CASCADE, related_name="proposed_schedules"
+    )
+    term = models.ForeignKey(
+        "academic_core.AcademicTerm", on_delete=models.SET_NULL, null=True
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
+    fitness_score = models.FloatField(default=0.0)
+    rank = models.PositiveSmallIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Horario #{self.rank} {self.teacher} - {self.term} ({self.status})"
+
+
+class ScheduleSession(models.Model):
+    DAYS = [
+        ("Monday",    "Lunes"),
+        ("Tuesday",   "Martes"),
+        ("Wednesday", "Miércoles"),
+        ("Thursday",  "Jueves"),
+        ("Friday",    "Viernes"),
+        ("Saturday",  "Sábado"),
+    ]
+    schedule = models.ForeignKey(
+        ProposedSchedule, on_delete=models.CASCADE, related_name="sessions"
+    )
+    group = models.ForeignKey(
+        CourseGroup, on_delete=models.CASCADE, related_name="sessions"
+    )
+    classroom = models.ForeignKey(
+        "classrooms.Classroom", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    day = models.CharField(max_length=10, choices=DAYS)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    def __str__(self):
+        return f"{self.group} - {self.day} {self.start_time}-{self.end_time}"
 
 
 class EnrollmentQueue(models.Model):
-
     student = models.ForeignKey("access_support.User", on_delete=models.CASCADE)
-
-    course = models.ForeignKey("academic_core.Course", on_delete=models.CASCADE)
-
+    course  = models.ForeignKey("academic_core.Course", on_delete=models.CASCADE)
     request_date = models.DateTimeField(auto_now_add=True)
-
     status = models.CharField(
         max_length=20,
         choices=[("waiting", "Waiting"), ("enrolled", "Enrolled")],
@@ -35,15 +121,3 @@ class EnrollmentQueue(models.Model):
 
     def __str__(self):
         return f"{self.student} waiting for {self.course}"
-
-
-class Schedule(models.Model):
-
-    group = models.ForeignKey(CourseGroup, on_delete=models.CASCADE)
-
-    published = models.BooleanField(default=False)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Schedule for {self.group}"

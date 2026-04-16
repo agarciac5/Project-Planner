@@ -1,0 +1,116 @@
+{% extends "base/base.html" %}
+{% block title %}Generar Horario Docente{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Generar Horario para Docente</h1>
+  <p class="subtitle">El algoritmo genético propone las 3 mejores distribuciones semanales.</p>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-row">
+      <div class="form-group">
+        <label for="teacher_id">Docente</label>
+        <select name="teacher_id" id="teacher_id" required>
+          <option value="">-- Seleccionar docente --</option>
+          {% for t in teachers %}
+            <option value="{{ t.id }}">{{ t.first_name }} {{ t.last_name }} ({{ t.teacher_id }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="term_id">Periodo académico</label>
+        <select name="term_id" id="term_id" required>
+          <option value="">-- Seleccionar periodo --</option>
+          {% for term in terms %}
+            <option value="{{ term.id }}">{{ term.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">⚙ Generar Horario</button>
+  </form>
+</div>
+
+{% if top3 %}
+<div class="results-header">
+  <h2>Propuestas para <strong>{{ teacher }}</strong> — {{ term }}</h2>
+  <p class="subtitle">Ordenadas de mejor a peor. Score más cercano a 0 es mejor.</p>
+</div>
+
+{% for option in top3 %}
+<div class="proposal-card {% if option.rank == 1 %}best{% endif %}">
+
+  <div class="proposal-header">
+    <div class="rank-badge rank-{{ option.rank }}">
+      {% if option.rank == 1 %}{% elif option.rank == 2 %}{% else %}{% endif %}
+      Opción {{ option.rank }}
+    </div>
+    <div class="proposal-meta">
+      <span class="score {% if option.fitness >= 0 %}score-ok{% else %}score-bad{% endif %}">
+        Score: {{ option.fitness }}
+      </span>
+      <span class="hours">{{ option.hours }}h clase/semana</span>
+      <a href="{% url 'schedule_detail' option.id %}" class="btn btn-sm btn-outline">
+        Ver detalle / Aprobar
+      </a>
+    </div>
+  </div>
+
+  <div class="breakdown">
+    <h4>Desglose del score</h4>
+    <div class="breakdown-list">
+      {% for item in option.breakdown %}
+      <div class="breakdown-item breakdown-{{ item.tipo }}">
+        <span class="breakdown-icon">
+          {% if item.tipo == "error" %}
+          {% elif item.tipo == "advertencia" %}
+          {% elif item.tipo == "info" %}
+          {% else %}{% endif %}
+        </span>
+        <span class="breakdown-desc">{{ item.descripcion }}</span>
+        {% if item.impacto != 0 %}
+          <span class="breakdown-impact">{{ item.impacto }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <table class="schedule-table">
+    <thead>
+      <tr>
+        <th>Código</th><th>Materia</th><th>Día</th>
+        <th>Inicio</th><th>Fin</th><th>Aula</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in option.sessions %}
+      <tr>
+        <td><code>{{ s.course_code }}</code></td>
+        <td>{{ s.course_name }}</td>
+        <td>{{ s.day }}</td>
+        <td>{{ s.start_time }}</td>
+        <td>{{ s.end_time }}</td>
+        <td>{{ s.classroom }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+{% endfor %}
+{% endif %}
+
+<style>
+.page-header{margin-bottom:1.5rem}.page-header h1{font-size:1.7rem;margin:0}.subtitle{color:#666;margin-top:.3rem;font-size:.95rem}.card{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:1.5rem;margin-bottom:1.5rem}.form-row{display:flex;gap:1.5rem;flex-wrap:wrap}.form-group{flex:1;min-width:200px;display:flex;flex-direction:column;gap:.4rem}.form-group label{font-weight:600;font-size:.9rem}.form-group select{padding:.5rem;border:1px solid #ccc;border-radius:6px;font-size:1rem}.btn{padding:.55rem 1.2rem;border-radius:6px;border:none;cursor:pointer;font-size:.95rem;text-decoration:none;display:inline-block;margin-top:1rem}.btn-primary{background:#1a56db;color:#fff}.btn-sm{padding:.3rem .8rem;margin-top:0;font-size:.85rem}.btn-outline{border:1px solid #1a56db;color:#1a56db;background:transparent}.results-header{margin:1.5rem 0 1rem}.results-header h2{font-size:1.3rem;margin:0}.proposal-card{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:1.5rem;margin-bottom:1.5rem}.proposal-card.best{border-color:#1a56db;box-shadow:0 0 0 2px #dbeafe}.proposal-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem;margin-bottom:1rem}.rank-badge{font-size:1rem;font-weight:700;padding:.3rem .8rem;border-radius:99px}.rank-1{background:#fef3c7;color:#92400e}.rank-2{background:#f1f5f9;color:#334155}.rank-3{background:#fdf4ff;color:#7e22ce}.proposal-meta{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}.score{font-weight:700;font-size:1rem;padding:.2rem .6rem;border-radius:6px}.score-ok{background:#d1fae5;color:#065f46}.score-bad{background:#fee2e2;color:#991b1b}.hours{font-size:.9rem;color:#555}.breakdown{background:#f9fafb;border-radius:6px;padding:1rem;margin-bottom:1rem}.breakdown h4{margin:0 0 .6rem;font-size:.95rem;color:#374151}.breakdown-list{display:flex;flex-direction:column;gap:.4rem}.breakdown-item{display:flex;align-items:center;gap:.6rem;font-size:.9rem;padding:.3rem .6rem;border-radius:4px}.breakdown-error{background:#fee2e2;color:#991b1b}.breakdown-advertencia{background:#fef3c7;color:#92400e}.breakdown-info{background:#eff6ff;color:#1e40af}.breakdown-ok{background:#d1fae5;color:#065f46}.breakdown-impact{margin-left:auto;font-weight:700}.schedule-table{width:100%;border-collapse:collapse;font-size:.9rem}.schedule-table th{background:#f3f4f6;text-align:left;padding:.5rem .8rem;border-bottom:2px solid #e5e7eb;font-size:.85rem}.schedule-table td{padding:.5rem .8rem;border-bottom:1px solid #f0f0f0}.schedule-table tr:hover td{background:#fafafa}code{background:#f1f5f9;padding:.1rem .3rem;border-radius:3px;font-size:.82rem}.alert{padding:.8rem 1rem;border-radius:6px;margin-bottom:1rem;font-size:.95rem}.alert-success{background:#d1fae5;color:#065f46}.alert-warning{background:#fef3c7;color:#92400e}.alert-error{background:#fee2e2;color:#991b1b}
+</style>
+{% endblock %}

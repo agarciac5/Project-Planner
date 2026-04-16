@@ -18,6 +18,11 @@
         {{ success_message }}
     </div>
     {% endif %}
+    {% if error_message %}
+    <div class="success-banner" style="background:#fff1f2; color:#b42318; border-color:#fecdd3;">
+        {{ error_message }}
+    </div>
+    {% endif %}
 
     <div class="content-card subject-form-card">
         <form method="post" class="planner-form">
@@ -37,6 +42,11 @@
                 <div class="planner-form-field">
                     <label for="codigo">Código</label>
                     <input type="text" id="codigo" name="codigo" value="{{ form_data.codigo|default:'' }}">
+                </div>
+
+                <div class="planner-form-field">
+                    <label for="creditos"># de créditos</label>
+                    <input type="number" id="creditos" name="creditos" min="0" step="1" value="{{ form_data.creditos|default:'' }}">
                 </div>
 
                 <div class="planner-form-field">

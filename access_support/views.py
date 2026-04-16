@@ -1,37 +1,22 @@
+from multiprocessing import context
+
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from .login import EmailLoginForm
 
 
-from academic_core.models import Campus, Faculty, AcademicProgram, Course, StudyPlan
-from classrooms.models import Classroom
-
+from academic_core.services.academic_services import get_programs, get_faculties, get_campuses, get_study_plans
 
 import pandas as pd
 import random
 import string
 from django.contrib import messages
 from .models import User, StudentProfile
+from academic_core.models import Campus, Faculty, AcademicProgram
 from django.contrib.auth import logout
 
 
-SCHEDULE_ROWS = [
-    ("6:00 am", "", "", "Tópicos Especiales", "", ""),
-    ("6:30 am", "", "", "Tópicos Especiales", "", ""),
-    ("7:00 am", "", "Inglés B2", "Tópicos Especiales", "", ""),
-    ("8:00 am", "Cálculo Diferencial", "Inglés B2", "", "", "Cálculo Diferencial"),
-    (
-        "8:30 am",
-        "Cálculo Diferencial",
-        "",
-        "",
-        "Programación Web",
-        "Cálculo Diferencial",
-    ),
-    ("9:00 am", "", "Bases de Datos", "", "Programación Web", ""),
-    ("10:30 am", "Telemática", "", "Telemática", "", ""),
-    ("11:00 am", "Telemática", "", "Telemática", "", ""),
-]
+
 
 SUBJECT_OPTIONS = [
     {
@@ -278,7 +263,6 @@ def _base_context(request):
     user_name = request.user.email if request.user.is_authenticated else "Invitado"
     return {
         "user_name": user_name,
-        "schedule_rows": SCHEDULE_ROWS,
         "subject_options": SUBJECT_OPTIONS,
         "teachers": TEACHERS,
         "students": STUDENTS,
@@ -317,54 +301,7 @@ def calendar_view(request):
 
 
 def add_calendar_view(request):
-    context = _base_context(request)
-    return render(request, "dashboard/add_calendar.html", context)
-
-
-def subjects_view(request):
-    context = _base_context(request)
-    context["items"] = Course.objects.all().order_by("id")
-    return render(request, "dashboard/subjects.html", context)
-
-
-def create_subject_view(request):
-    context = _base_context(request)
-
-    context["classrooms_db"] = Classroom.objects.all().order_by("classroom_id")
-    context["programs_db"] = AcademicProgram.objects.all().order_by("name")
-
-    form_data = {}
-
-    if request.method == "POST":
-        form_data = {
-            "id": request.POST.get("id", ""),
-            "materia": request.POST.get("materia", ""),
-            "codigo": request.POST.get("codigo", ""),
-            "grupo": request.POST.get("grupo", ""),
-            "docente": request.POST.get("docente", ""),
-            "aula": request.POST.get("aula", ""),
-            "dia": request.POST.get("dia", ""),
-            "inicio": request.POST.get("inicio", ""),
-            "fin": request.POST.get("fin", ""),
-            "programa": request.POST.get("programa", ""),
-            "descripcion": request.POST.get("descripcion", ""),
-        }
-        context["success_message"] = "Materia diligenciada correctamente."
-
-    context["form_data"] = form_data
-    return render(request, "dashboard/create_subject.html", context)
-
-
-def subject_detail_view(request):
-    context = _base_context(request)
-    context["selected_subject"] = SUBJECT_OPTIONS[0]
-    return render(request, "dashboard/subject_detail.html", context)
-
-
-def added_success_view(request):
-    context = _base_context(request)
-    context["selected_subject"] = SUBJECT_OPTIONS[0]
-    return render(request, "dashboard/success.html", context)
+    return redirect("generate_schedule")
 
 
 def students_view(request):
@@ -373,45 +310,11 @@ def students_view(request):
     return render(request, "dashboard/students.html", context)
 
 
-def campuses_view(request):
-    context = _base_context(request)
-    context["items"] = Campus.objects.all().order_by("id")
-    return render(request, "dashboard/campuses.html", context)
-
-
-def faculties_view(request):
-    context = _base_context(request)
-    context["items"] = Faculty.objects.all().order_by("id")
-    return render(request, "dashboard/faculties.html", context)
-
-
-def classrooms_view(request):
-    context = _base_context(request)
-    context["items"] = Classroom.objects.all().order_by("id")
-    return render(request, "dashboard/classrooms.html", context)
-
-
 def programs_view(request):
     context = _base_context(request)
-    context["items"] = AcademicProgram.objects.all().order_by("id")
+    context["items"] = get_programs()
     return render(request, "dashboard/programs.html", context)
 
-
-def study_plan_view(request):
-    context = _base_context(request)
-    selected_program = request.GET.get("program")
-
-    if selected_program:
-        filtered_plans = [
-            plan for plan in STUDY_PLANS if plan["programa"] == selected_program
-        ]
-    else:
-        filtered_plans = STUDY_PLANS
-
-    context["selected_program"] = selected_program
-    context["filtered_plans"] = filtered_plans
-    context["items"] = StudyPlan.objects.all().order_by("id")
-    return render(request, "dashboard/study_plan.html", context)
 
 
 def generar_password(longitud=10):
