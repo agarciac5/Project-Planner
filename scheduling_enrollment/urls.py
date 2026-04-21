@@ -1,8 +1,32 @@
 from django.urls import path
-from .views import generate_schedule_view, schedule_list_view, schedule_detail_view
+from .views import (
+    generate_schedule_view,
+    generate_schedule_view_students,
+    schedule_list_view,
+    schedule_detail_view,
+    semester_planner_view,
+    save_semester_run_view,
+    select_semester_option_view,
+    deselect_semester_option_view,
+    apply_semester_option_view,
+    revert_semester_option_view,
+    delete_semester_run_view,
+    saved_semester_runs_view,
+    saved_semester_run_detail_view,
+)
  
 urlpatterns = [
     path("generar-horario/", generate_schedule_view, name="generate_schedule"),
+    path("generar-horario-estudiantes/", generate_schedule_view_students, name="generate_schedule_students"),
+    path("plan-semestral/", semester_planner_view, name="semester_planner"),
+    path("plan-semestral/<int:run_id>/guardar/", save_semester_run_view, name="save_semester_run"),
+    path("plan-semestral/opcion/<int:option_id>/seleccionar/", select_semester_option_view, name="select_semester_option"),
+    path("plan-semestral/opcion/<int:option_id>/deseleccionar/", deselect_semester_option_view, name="deselect_semester_option"),
+    path("plan-semestral/opcion/<int:option_id>/aplicar/", apply_semester_option_view, name="apply_semester_option"),
+    path("plan-semestral/opcion/<int:option_id>/revertir/", revert_semester_option_view, name="revert_semester_option"),
+    path("plan-semestral/<int:run_id>/eliminar/", delete_semester_run_view, name="delete_semester_run"),
+    path("planes-guardados/", saved_semester_runs_view, name="saved_semester_runs"),
+    path("planes-guardados/<int:run_id>/", saved_semester_run_detail_view, name="saved_semester_run_detail"),
     path("horarios/", schedule_list_view, name="schedule_list"),
     path("horarios/<int:schedule_id>/", schedule_detail_view, name="schedule_detail"),
 ]

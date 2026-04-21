@@ -11,6 +11,8 @@
         <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Inicio</a>
         <a href="{% url 'calendar' %}" class="{% if request.resolver_match.url_name == 'calendar' %}active{% endif %}">Calendario</a>
         <a href="{% url 'add_calendar' %}" class="{% if request.resolver_match.url_name == 'add_calendar' %}active{% endif %}">Generar horario</a>
+        <a href="{% url 'semester_planner' %}" class="{% if request.resolver_match.url_name == 'semester_planner' %}active{% endif %}">Plan semestral</a>
+        <a href="{% url 'saved_semester_runs' %}" class="{% if request.resolver_match.url_name == 'saved_semester_runs' or request.resolver_match.url_name == 'saved_semester_run_detail' %}active{% endif %}">Planes guardados</a>
         <a href="{% url 'subjects' %}" class="{% if request.resolver_match.url_name == 'subjects' or request.resolver_match.url_name == 'create_subject' %}active{% endif %}">Materias</a>
         <a href="{% url 'teacher_list' %}" class="{% if request.resolver_match.url_name == 'teacher_list' %}active{% endif %}">Docentes</a>
         <a href="{% url 'students' %}" class="{% if request.resolver_match.url_name == 'students' %}active{% endif %}">Estudiantes</a>

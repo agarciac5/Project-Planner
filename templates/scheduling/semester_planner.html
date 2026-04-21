@@ -1,0 +1,175 @@
+{% extends "base/base.html" %}
+{% block title %}Planificador Semestral{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Planificador Semestral</h1>
+  <p class="subtitle">Abre grupos segun demanda, asigna docente y aula, y prioriza la opcion mas balanceada.</p>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+{% if show_generator|default:True %}
+<div class="card">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-row">
+      <div class="form-group">
+        <label for="term_id">Periodo academico</label>
+        <select name="term_id" id="term_id" required>
+          <option value="">-- Seleccionar periodo --</option>
+          {% for term in terms %}
+            <option value="{{ term.id }}">{{ term.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Generar plan semestral</button>
+  </form>
+</div>
+{% endif %}
+
+{% if run %}
+<div class="results-header">
+  <h2>Resultado para {{ run.term.name }}</h2>
+  <p class="subtitle">Estado del plan: {{ run.get_status_display }}</p>
+  <div class="results-actions">
+    {% if run.status == "draft" %}
+    <form method="post" action="{% url 'save_semester_run' run.id %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-secondary">Guardar plan</button>
+    </form>
+    {% endif %}
+    {% if run.status != "draft" %}
+    <form method="post" action="{% url 'delete_semester_run' run.id %}" onsubmit="return confirm('¿Eliminar este plan guardado?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Borrar plan</button>
+    </form>
+    {% endif %}
+    {% if run.status != "draft" %}
+    <a href="{% url 'saved_semester_runs' %}" class="btn btn-outline">Ver planes guardados</a>
+    {% endif %}
+  </div>
+</div>
+
+{% for option in options %}
+<div class="proposal-card {% if option.is_best %}best{% endif %}">
+  <div class="proposal-header">
+    <div class="rank-badge">Opcion {{ option.rank }}</div>
+    <div class="proposal-meta">
+      <span class="score">{{ option.score }}/100</span>
+      <span>{{ option.demand_covered }}/{{ option.demand_total }} estudiantes cubiertos</span>
+      <span>{{ option.sections_opened }} grupos</span>
+      {% if option.selected %}
+        <span class="pill pill-selected">Seleccionada</span>
+      {% endif %}
+      {% if option.applied %}
+        <span class="pill pill-success">Aplicada</span>
+      {% elif option.is_best %}
+        <span class="pill pill-info">Mejor opcion</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if run.status != "applied" %}
+  <div class="option-actions">
+    {% if not option.selected %}
+    <form method="post" action="{% url 'select_semester_option' option.id %}" onsubmit="return confirm('¿Seguro que deseas fijar esta opción como la seleccionada?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-secondary">Elegir esta opcion</button>
+    </form>
+    {% else %}
+    <form method="post" action="{% url 'deselect_semester_option' option.id %}" onsubmit="return confirm('¿Seguro que deseas deseleccionar esta opción?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-danger">Deseleccionar</button>
+    </form>
+    <form method="post" action="{% url 'apply_semester_option' option.id %}" onsubmit="return confirm('¿Seguro que deseas aplicar esta opción y convertirla en grupos reales?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">Aplicar esta opcion</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if run.status == "applied" %}
+  <div class="option-actions">
+    {% if option.applied %}
+    <form method="post" action="{% url 'revert_semester_option' option.id %}" onsubmit="return confirm('¿Seguro que deseas revertir esta aplicación y borrar los grupos creados?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Revertir aplicacion</button>
+    </form>
+    {% else %}
+    <span class="selection-note">Este plan ya fue aplicado con otra opcion. Si quieres cambiarla, primero revierte la aplicada.</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="summary-grid">
+    <div class="summary-item">Conflictos duros: {{ option.summary.hard_conflicts }}</div>
+    <div class="summary-item">Violaciones disponibilidad: {{ option.summary.availability_violations }}</div>
+    <div class="summary-item">Conflictos con actividades: {{ option.summary.activity_conflicts }}</div>
+    <div class="summary-item">Sobrecarga contractual: {{ option.summary.contract_overload }}</div>
+    <div class="summary-item">Docentes bajo minimo: {{ option.summary.under_min_hours_teachers|default:0 }}</div>
+    <div class="summary-item">Secciones bajo minimo: {{ option.summary.sections_below_minimum }}</div>
+    <div class="summary-item">Estudiantes sin cubrir: {{ option.summary.uncovered_students }}</div>
+    <div class="summary-item">Desbalance de carga: {{ option.summary.load_balance_penalty }}</div>
+  </div>
+
+  <div class="score-breakdown">
+    <div class="score-formula">
+      <strong>Calculo del score:</strong>
+      100 - {{ option.summary.total_penalty|default:0 }} = {{ option.score }}
+    </div>
+    {% if option.penalties %}
+    <div class="penalty-list">
+      {% for penalty in option.penalties %}
+      <div class="penalty-item">
+        <span>{{ penalty.label }}</span>
+        <strong>-{{ penalty.value }}</strong>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="penalty-empty">Sin penalizaciones registradas.</div>
+    {% endif %}
+  </div>
+
+  <table class="schedule-table">
+    <thead>
+      <tr>
+        <th>Curso</th>
+        <th>Seccion</th>
+        <th>Docente</th>
+        <th>Dia</th>
+        <th>Hora</th>
+        <th>Aula</th>
+        <th>Estudiantes</th>
+        <th>NRC</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for assignment in option.assignments %}
+      <tr>
+        <td><code>{{ assignment.course_code }}</code> {{ assignment.course_name }}</td>
+        <td>{{ assignment.section_number }}</td>
+        <td>{{ assignment.teacher }}</td>
+        <td>{{ assignment.day }}</td>
+        <td>{{ assignment.start_time }} - {{ assignment.end_time }}</td>
+        <td>{{ assignment.classroom }}</td>
+        <td>{{ assignment.students_assigned }}</td>
+        <td>{{ assignment.nrc|default:"-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+{% endif %}
+
+<style>
+.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.4rem;margin-bottom:1.5rem}.form-row{display:flex;gap:1rem;flex-wrap:wrap}.form-group{display:flex;flex-direction:column;gap:.45rem;min-width:240px}.form-group select{padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:8px}.btn{padding:.65rem 1.15rem;border:none;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}.btn-primary{background:#0f766e;color:#fff}.btn-secondary{background:#1d4ed8;color:#fff}.btn-danger{background:#b91c1c;color:#fff}.btn-outline{background:#fff;color:#0f766e;border:1px solid #0f766e}.btn-outline-danger{background:#fff;color:#b91c1c;border:1px solid #b91c1c}.alert{padding:.85rem 1rem;border-radius:8px;margin-bottom:1rem}.alert-success{background:#dcfce7;color:#166534}.alert-warning{background:#fef3c7;color:#92400e}.alert-error{background:#fee2e2;color:#991b1b}.results-header{margin:1.4rem 0;display:flex;justify-content:space-between;gap:1rem;align-items:flex-end;flex-wrap:wrap}.results-actions{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}.proposal-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1.2rem;margin-bottom:1.2rem}.proposal-card.best{border-color:#0f766e;box-shadow:0 0 0 2px #ccfbf1}.proposal-header{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}.proposal-meta{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}.option-actions{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}.selection-note{color:#57534e;font-size:.95rem}.rank-badge,.score,.pill{padding:.25rem .65rem;border-radius:999px;font-weight:600}.rank-badge{background:#e0f2fe;color:#075985}.score{background:#ecfccb;color:#365314}.pill-success{background:#dcfce7;color:#166534}.pill-info{background:#ede9fe;color:#5b21b6}.pill-selected{background:#dbeafe;color:#1d4ed8}.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.6rem;margin-bottom:1rem}.summary-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:.65rem .8rem}.score-breakdown{background:#fafaf9;border:1px solid #e7e5e4;border-radius:10px;padding:1rem;margin-bottom:1rem}.score-formula{margin-bottom:.75rem;color:#292524}.penalty-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.55rem}.penalty-item{display:flex;justify-content:space-between;gap:1rem;background:#fff;border:1px solid #e7e5e4;border-radius:8px;padding:.6rem .75rem}.penalty-empty{color:#57534e}.schedule-table{width:100%;border-collapse:collapse}.schedule-table th,.schedule-table td{padding:.65rem .7rem;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}.schedule-table th{background:#f8fafc}.schedule-table code{background:#f1f5f9;padding:.15rem .3rem;border-radius:4px}
+</style>
+{% endblock %}

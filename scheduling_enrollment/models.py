@@ -111,7 +111,14 @@ class ScheduleSession(models.Model):
 
 class EnrollmentQueue(models.Model):
     student = models.ForeignKey("access_support.User", on_delete=models.CASCADE)
-    course  = models.ForeignKey("academic_core.Course", on_delete=models.CASCADE)
+    course = models.ForeignKey("academic_core.Course", on_delete=models.CASCADE)
+    term = models.ForeignKey(
+        "academic_core.AcademicTerm",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollment_requests",
+    )
     request_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         max_length=20,
@@ -121,3 +128,100 @@ class EnrollmentQueue(models.Model):
 
     def __str__(self):
         return f"{self.student} waiting for {self.course}"
+
+
+class SemesterScheduleRun(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Borrador"),
+        ("saved", "Guardado"),
+        ("applied", "Aplicado"),
+    ]
+
+    term = models.ForeignKey(
+        "academic_core.AcademicTerm",
+        on_delete=models.CASCADE,
+        related_name="semester_schedule_runs",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Plan semestral {self.term} - {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class SemesterScheduleOption(models.Model):
+    run = models.ForeignKey(
+        SemesterScheduleRun,
+        on_delete=models.CASCADE,
+        related_name="options",
+    )
+    rank = models.PositiveSmallIntegerField(default=1)
+    score = models.FloatField(default=0.0)
+    demand_covered = models.PositiveIntegerField(default=0)
+    demand_total = models.PositiveIntegerField(default=0)
+    sections_opened = models.PositiveIntegerField(default=0)
+    is_best = models.BooleanField(default=False)
+    selected = models.BooleanField(default=False)
+    applied = models.BooleanField(default=False)
+    summary = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["rank", "-score"]
+        unique_together = ("run", "rank")
+
+    def __str__(self):
+        return f"Opcion {self.rank} - {self.run.term} ({self.score:.2f})"
+
+
+class SemesterScheduleAssignment(models.Model):
+    option = models.ForeignKey(
+        SemesterScheduleOption,
+        on_delete=models.CASCADE,
+        related_name="assignments",
+    )
+    course = models.ForeignKey("academic_core.Course", on_delete=models.CASCADE)
+    teacher = models.ForeignKey(
+        "teaching.Teacher",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    classroom = models.ForeignKey(
+        "classrooms.Classroom",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    generated_group = models.ForeignKey(
+        CourseGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="semester_assignments",
+    )
+    generated_schedule = models.ForeignKey(
+        ProposedSchedule,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="semester_assignments",
+    )
+    section_number = models.PositiveSmallIntegerField(default=1)
+    nrc = models.CharField(max_length=20, blank=True)
+    day = models.CharField(max_length=10, choices=ScheduleSession.DAYS)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    students_assigned = models.PositiveSmallIntegerField(default=0)
+    capacity = models.PositiveSmallIntegerField(default=20)
+
+    class Meta:
+        ordering = ["course__code", "section_number"]
+
+    def __str__(self):
+        return (
+            f"{self.course.code} - Sec {self.section_number} "
+            f"{self.day} {self.start_time}-{self.end_time}"
+        )

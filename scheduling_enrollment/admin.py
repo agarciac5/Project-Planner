@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import CourseGroup, ProposedSchedule, ScheduleSession, EnrollmentQueue
+from .models import (
+    CourseGroup,
+    EnrollmentQueue,
+    ProposedSchedule,
+    ScheduleSession,
+    SemesterScheduleAssignment,
+    SemesterScheduleOption,
+    SemesterScheduleRun,
+)
 
 
 @admin.register(CourseGroup)
@@ -23,5 +31,33 @@ class ScheduleSessionAdmin(admin.ModelAdmin):
 
 @admin.register(EnrollmentQueue)
 class EnrollmentQueueAdmin(admin.ModelAdmin):
-    list_display = ("student", "course", "status", "request_date")
-    list_filter = ("status",)
+    list_display = ("student", "course", "term", "status", "request_date")
+    list_filter = ("status", "term")
+
+
+@admin.register(SemesterScheduleRun)
+class SemesterScheduleRunAdmin(admin.ModelAdmin):
+    list_display = ("term", "status", "created_at")
+    list_filter = ("status", "term")
+
+
+@admin.register(SemesterScheduleOption)
+class SemesterScheduleOptionAdmin(admin.ModelAdmin):
+    list_display = ("run", "rank", "score", "sections_opened", "applied", "is_best")
+    list_filter = ("applied", "is_best")
+
+
+@admin.register(SemesterScheduleAssignment)
+class SemesterScheduleAssignmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "option",
+        "course",
+        "section_number",
+        "teacher",
+        "classroom",
+        "day",
+        "start_time",
+        "students_assigned",
+        "generated_group",
+    )
+    list_filter = ("day", "option__run__term")

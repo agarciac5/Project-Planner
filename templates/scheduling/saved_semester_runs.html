@@ -1,0 +1,44 @@
+{% extends "base/base.html" %}
+{% block title %}Planes Guardados{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Planes Semestrales Guardados</h1>
+  <p class="subtitle">Consulta los resultados que decidiste conservar para compararlos o revisarlos despues.</p>
+</div>
+
+{% if runs %}
+<div class="runs-grid">
+  {% for run in runs %}
+  <div class="run-card">
+    <h3>{{ run.term.name }}</h3>
+    <p><strong>Estado:</strong> {{ run.get_status_display }}</p>
+    <p><strong>Generado:</strong> {{ run.created_at|date:"Y-m-d H:i" }}</p>
+    {% with best=run.options.first %}
+      {% if best %}
+      <p><strong>Mejor score:</strong> {{ best.score }}/100</p>
+      <p><strong>Grupos:</strong> {{ best.sections_opened }}</p>
+      <p><strong>Cobertura:</strong> {{ best.demand_covered }}/{{ best.demand_total }}</p>
+      {% endif %}
+    {% endwith %}
+    <div class="card-actions">
+      <a href="{% url 'saved_semester_run_detail' run.id %}" class="btn btn-primary">Ver detalle</a>
+      <form method="post" action="{% url 'delete_semester_run' run.id %}" onsubmit="return confirm('¿Eliminar este plan guardado?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Borrar</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-card">
+  <p>No hay planes guardados todavia.</p>
+  <a href="{% url 'semester_planner' %}" class="btn btn-primary">Ir al planificador</a>
+</div>
+{% endif %}
+
+<style>
+.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.runs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}.run-card,.empty-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1.2rem}.run-card h3{margin-top:0;margin-bottom:.8rem}.run-card p{margin:.35rem 0;color:#374151}.card-actions{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.9rem}.btn{padding:.65rem 1.15rem;border:none;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}.btn-primary{background:#0f766e;color:#fff}.btn-danger{background:#b91c1c;color:#fff}
+</style>
+{% endblock %}
