@@ -1,12 +1,16 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
+from django.db import models
+from django.contrib.auth.decorators import login_required
 
+from access_support.models import StudentProfile
 from teaching.models import Teacher
 from classrooms.models import Classroom
-from academic_core.models import AcademicTerm
+from academic_core.models import AcademicTerm, Course
 
 from .models import (
     CourseGroup,
+    EnrollmentQueue,
     ProposedSchedule,
     ScheduleSession,
     SemesterScheduleOption,
@@ -17,6 +21,12 @@ from .services.scheduling_service import (
     apply_semester_schedule_run,
     generate_semester_schedule_options,
     revert_semester_schedule_option,
+)
+from .services.enrollment_service import (
+    assign_waiting_students_to_groups,
+    get_active_term,
+    get_student_available_courses,
+    request_student_enrollment,
 )
 
 from .genetic import (
@@ -139,6 +149,175 @@ def _build_semester_run_context(run):
         )
 
     return run, options
+
+
+def _term_options(selected_term_id=None):
+    terms = AcademicTerm.objects.order_by("-start_date")
+    selected_term = None
+
+    if selected_term_id:
+        selected_term = terms.filter(id=selected_term_id).first()
+
+    if selected_term is None:
+        selected_term = terms.first()
+
+    return terms, selected_term
+
+
+def _teacher_schedule_rows(teacher, term):
+    schedule_qs = (
+        ProposedSchedule.objects.filter(teacher=teacher, term=term)
+        .order_by(
+            models.Case(
+                models.When(status="approved", then=0),
+                models.When(status="draft", then=1),
+                models.When(status="rejected", then=2),
+                default=3,
+                output_field=models.IntegerField(),
+            ),
+            "rank",
+            "-created_at",
+        )
+    )
+    schedules = list(schedule_qs)
+    selected_schedule = schedules[0] if schedules else None
+
+    class_rows = []
+    if selected_schedule:
+        sessions = (
+            selected_schedule.sessions.select_related("group__course", "classroom")
+            .order_by("day", "start_time")
+        )
+        for session in sessions:
+            class_rows.append(
+                {
+                    "kind": "Clase",
+                    "kind_class": "kind-class",
+                    "course_code": session.group.course.code,
+                    "course_name": session.group.course.name,
+                    "section": session.group.nrc or f"Grupo {session.group.id}",
+                    "day": DAYS_ES.get(session.day, session.day),
+                    "day_order": DAYS_ORDER.index(session.day) if session.day in DAYS_ORDER else 99,
+                    "start_time": session.start_time.strftime("%H:%M"),
+                    "end_time": session.end_time.strftime("%H:%M"),
+                    "location": session.classroom.classroom_id if session.classroom else "Virtual",
+                    "status": selected_schedule.get_status_display(),
+                    "notes": "Sesion academica asignada.",
+                }
+            )
+
+    activity_rows = []
+    for activity in (
+        TeacherActivity.objects.filter(teacher=teacher, term=term)
+        .order_by("day", "start_time")
+    ):
+        activity_rows.append(
+            {
+                "kind": "Actividad",
+                "kind_class": "kind-activity",
+                "course_code": "",
+                "course_name": activity.get_activity_type_display(),
+                "section": "-",
+                "day": DAYS_ES.get(activity.day, activity.day),
+                "day_order": DAYS_ORDER.index(activity.day) if activity.day in DAYS_ORDER else 99,
+                "start_time": activity.start_time.strftime("%H:%M"),
+                "end_time": activity.end_time.strftime("%H:%M"),
+                "location": "Sin aula",
+                "status": "Registrada",
+                "notes": f"Carga adicional de {activity.duration_hours}h.",
+            }
+        )
+
+    rows = sorted(
+        class_rows + activity_rows,
+        key=lambda row: (row["day_order"], row["start_time"], row["kind"] != "Clase"),
+    )
+
+    return {
+        "selected_schedule": selected_schedule,
+        "rows": rows,
+        "class_count": len(class_rows),
+        "activity_count": len(activity_rows),
+    }
+
+
+def _student_schedule_rows(student_profile, term):
+    enrollments = list(
+        EnrollmentQueue.objects.filter(
+            student=student_profile.user,
+            term=term,
+            status="enrolled",
+        )
+        .select_related("course", "course_group__teacher")
+        .order_by("course__code")
+    )
+
+    rows = []
+    for enrollment in enrollments:
+        selected_group = enrollment.course_group
+
+        if not selected_group:
+            rows.append(
+                {
+                    "course_code": enrollment.course.code,
+                    "course_name": enrollment.course.name,
+                    "section": "Sin grupo asignado",
+                    "teacher": "Pendiente",
+                    "day": "-",
+                    "day_order": 99,
+                    "start_time": "-",
+                    "end_time": "-",
+                    "location": "-",
+                    "status": "Inscrito",
+                    "notes": "El curso esta inscrito, pero aun no tiene grupo asignado para el periodo.",
+                }
+            )
+            continue
+
+        sessions = list(
+            selected_group.sessions.select_related("classroom", "schedule").all()
+        )
+
+        if not sessions:
+            rows.append(
+                {
+                    "course_code": enrollment.course.code,
+                    "course_name": enrollment.course.name,
+                    "section": selected_group.nrc or f"Grupo {selected_group.id}",
+                    "teacher": str(selected_group.teacher) if selected_group.teacher else "Pendiente",
+                    "day": "-",
+                    "day_order": 99,
+                    "start_time": "-",
+                    "end_time": "-",
+                    "location": "-",
+                    "status": "Inscrito",
+                    "notes": "El grupo existe, pero todavia no tiene sesiones programadas.",
+                }
+            )
+            continue
+
+        for session in sessions:
+            rows.append(
+                {
+                    "course_code": enrollment.course.code,
+                    "course_name": enrollment.course.name,
+                    "section": selected_group.nrc or f"Grupo {selected_group.id}",
+                    "teacher": str(selected_group.teacher) if selected_group.teacher else "Pendiente",
+                    "day": DAYS_ES.get(session.day, session.day),
+                    "day_order": DAYS_ORDER.index(session.day) if session.day in DAYS_ORDER else 99,
+                    "start_time": session.start_time.strftime("%H:%M"),
+                    "end_time": session.end_time.strftime("%H:%M"),
+                    "location": session.classroom.classroom_id if session.classroom else "Virtual",
+                    "status": "Inscrito",
+                    "notes": "Sesion asociada a la matricula del estudiante.",
+                }
+            )
+
+    return {
+        "rows": sorted(rows, key=lambda row: (row["day_order"], row["start_time"], row["course_code"])),
+        "course_count": len(enrollments),
+        "session_count": len([row for row in rows if row["day"] != "-"]),
+    }
 
 
 def _sessions_display(genes, groups_by_id, classrooms_by_id):
@@ -370,6 +549,202 @@ def generate_schedule_view(request):
 
     messages.success(request, f"Se generaron {len(top3_display)} propuestas de horario.")
     return render(request, "scheduling/generate_schedule.html", context)
+
+
+def teacher_complete_schedule_view(request):
+    teachers = Teacher.objects.filter(is_active=True).order_by("last_name", "first_name")
+    selected_teacher_id = request.GET.get("teacher_id")
+    selected_term_id = request.GET.get("term_id")
+
+    selected_teacher = None
+    if selected_teacher_id:
+        selected_teacher = teachers.filter(id=selected_teacher_id).first()
+    if selected_teacher is None:
+        selected_teacher = teachers.first()
+
+    terms, selected_term = _term_options(selected_term_id)
+
+    schedule_context = {
+        "selected_schedule": None,
+        "rows": [],
+        "class_count": 0,
+        "activity_count": 0,
+    }
+
+    if selected_teacher and selected_term:
+        schedule_context = _teacher_schedule_rows(selected_teacher, selected_term)
+
+    return render(
+        request,
+        "scheduling/teacher_complete_schedule.html",
+        {
+            "teachers": teachers,
+            "terms": terms,
+            "selected_teacher": selected_teacher,
+            "selected_term": selected_term,
+            **schedule_context,
+        },
+    )
+
+
+def student_complete_schedule_view(request):
+    students = (
+        StudentProfile.objects.select_related("user")
+        .order_by("full_name", "student_code")
+    )
+    selected_student_id = request.GET.get("student_id")
+    selected_term_id = request.GET.get("term_id")
+
+    selected_student = None
+    if selected_student_id:
+        selected_student = students.filter(id=selected_student_id).first()
+    if selected_student is None:
+        selected_student = students.first()
+
+    terms, selected_term = _term_options(selected_term_id)
+
+    schedule_context = {
+        "rows": [],
+        "course_count": 0,
+        "session_count": 0,
+    }
+    if selected_student and selected_term:
+        schedule_context = _student_schedule_rows(selected_student, selected_term)
+
+    return render(
+        request,
+        "scheduling/student_complete_schedule.html",
+        {
+            "students": students,
+            "terms": terms,
+            "selected_student": selected_student,
+            "selected_term": selected_term,
+            **schedule_context,
+        },
+    )
+
+
+@login_required
+def enrollment_view(request):
+    if request.user.role != "student":
+        messages.warning(request, "Este apartado de matricula esta disponible solo para estudiantes.")
+        return redirect("home")
+
+    student_profile = (
+        StudentProfile.objects.select_related("program", "user")
+        .filter(user=request.user)
+        .first()
+    )
+    if not student_profile:
+        messages.warning(request, "Tu usuario no tiene perfil estudiantil configurado. Debes crear o importar el StudentProfile antes de usar matricula.")
+        return redirect("home")
+    active_term = get_active_term()
+    if not active_term:
+        messages.warning(request, "No existe un periodo academico activo para realizar matriculas.")
+        return redirect("home")
+
+    if request.method == "POST":
+        course = get_object_or_404(Course, id=request.POST.get("course_id"))
+        enrollment, outcome = request_student_enrollment(request.user, course, active_term)
+        if outcome == "existing":
+            if enrollment.status == "enrolled":
+                messages.info(request, "Ya tienes esta materia matriculada en el periodo activo.")
+            else:
+                messages.info(request, "Ya tienes esta materia en lista de espera.")
+        elif outcome == "enrolled":
+            messages.success(request, "La materia fue matriculada directamente en un grupo disponible.")
+        else:
+            assign_waiting_students_to_groups(active_term, course=course)
+            enrollment.refresh_from_db()
+            if enrollment.status == "enrolled":
+                messages.success(request, "La materia quedo matriculada despues de procesar la demanda del curso.")
+            else:
+                messages.success(request, "La solicitud fue enviada a la lista de espera del curso.")
+        return redirect("enrollment")
+
+    available_courses = list(get_student_available_courses(student_profile))
+    existing_enrollments = {
+        enrollment.course_id: enrollment
+        for enrollment in EnrollmentQueue.objects.filter(
+            student=request.user,
+            term=active_term,
+        ).select_related("course_group")
+    }
+
+    course_rows = []
+    for course in available_courses:
+        enrollment = existing_enrollments.get(course.id)
+        waiting_count = EnrollmentQueue.objects.filter(
+            course=course,
+            term=active_term,
+            status="waiting",
+        ).count()
+        available_groups = []
+        for group in CourseGroup.objects.filter(course=course, term=active_term).annotate(
+            enrolled_count=models.Count(
+                "student_enrollments",
+                filter=models.Q(student_enrollments__status="enrolled"),
+            )
+        ):
+            available_groups.append(group.capacity - group.enrolled_count)
+
+        course_rows.append(
+            {
+                "id": course.id,
+                "code": course.code,
+                "name": course.name,
+                "semester": course.semester,
+                "status": enrollment.get_status_display() if enrollment else "Disponible",
+                "group_label": enrollment.course_group.nrc if enrollment and enrollment.course_group else "-",
+                "waiting_count": waiting_count,
+                "has_capacity": any(space > 0 for space in available_groups),
+                "can_request": enrollment is None,
+            }
+        )
+
+    return render(
+        request,
+        "scheduling/enrollment.html",
+        {
+            "student_profile": student_profile,
+            "active_term": active_term,
+            "course_rows": course_rows,
+        },
+    )
+
+
+@login_required
+def my_student_schedule_view(request):
+    if request.user.role != "student":
+        messages.warning(request, "Este apartado de horario esta disponible solo para estudiantes.")
+        return redirect("home")
+
+    student_profile = (
+        StudentProfile.objects.select_related("user")
+        .filter(user=request.user)
+        .first()
+    )
+    if not student_profile:
+        messages.warning(request, "Tu usuario no tiene perfil estudiantil configurado. Debes crear o importar el StudentProfile antes de consultar tu horario.")
+        return redirect("home")
+    active_term = get_active_term()
+    schedule_context = {
+        "rows": [],
+        "course_count": 0,
+        "session_count": 0,
+    }
+    if active_term:
+        schedule_context = _student_schedule_rows(student_profile, active_term)
+
+    return render(
+        request,
+        "scheduling/my_student_schedule.html",
+        {
+            "student_profile": student_profile,
+            "active_term": active_term,
+            **schedule_context,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------

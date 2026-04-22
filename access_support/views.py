@@ -2,6 +2,7 @@ from multiprocessing import context
 
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
 from .login import EmailLoginForm
 
 
@@ -14,6 +15,7 @@ from django.contrib import messages
 from .models import User, StudentProfile
 from academic_core.models import Campus, Faculty, AcademicProgram
 from django.contrib.auth import logout
+from .forms import StudentSelfProfileForm
 
 
 
@@ -322,6 +324,32 @@ def generar_password(longitud=10):
     return "".join(random.sample(caracteres, longitud))
 
 
+def generar_codigo_estudiantil():
+    base = "EST-"
+    ultimo = (
+        StudentProfile.objects.exclude(student_code__isnull=True)
+        .exclude(student_code="")
+        .order_by("-id")
+        .values_list("student_code", flat=True)
+    )
+
+    max_number = 0
+    for code in ultimo:
+        if not code:
+            continue
+        if code.startswith(base):
+            suffix = code.replace(base, "", 1)
+            if suffix.isdigit():
+                max_number = max(max_number, int(suffix))
+
+    next_number = max_number + 1
+    while True:
+        candidate = f"{base}{next_number:06d}"
+        if not StudentProfile.objects.filter(student_code=candidate).exists():
+            return candidate
+        next_number += 1
+
+
 def import_view(request):
     context = _base_context(request)
 
@@ -414,9 +442,58 @@ def import_view(request):
     return render(request, "dashboard/import.html", context)
 
 
+@login_required
 def profile_view(request):
     context = _base_context(request)
+    student_profile = None
+    if request.user.role == "student":
+        student_profile = (
+            StudentProfile.objects.select_related("program", "faculty", "campus")
+            .filter(user=request.user)
+            .first()
+        )
+    context["student_profile"] = student_profile
     return render(request, "dashboard/profile.html", context)
+
+
+@login_required
+def student_profile_setup_view(request):
+    if request.user.role != "student":
+        messages.warning(request, "Este apartado solo esta disponible para estudiantes.")
+        return redirect("profile")
+
+    profile = StudentProfile.objects.filter(user=request.user).first()
+    if profile is None:
+        profile = StudentProfile(user=request.user)
+
+    if request.method == "POST":
+        form = StudentSelfProfileForm(request.POST, instance=profile)
+        if form.is_valid():
+            profile = form.save(commit=False)
+            profile.user = request.user
+            if not profile.student_code:
+                profile.student_code = generar_codigo_estudiantil()
+
+            if profile.program and not profile.faculty:
+                profile.faculty = profile.program.faculty
+            if profile.program and not profile.campus:
+                profile.campus = profile.program.campus
+
+            profile.save()
+            messages.success(request, "Tu perfil estudiantil fue guardado correctamente.")
+            return redirect("profile")
+    else:
+        form = StudentSelfProfileForm(instance=profile)
+
+    return render(
+        request,
+        "access_support/student_profile_setup.html",
+        {
+            "form": form,
+            "has_profile": profile.pk is not None,
+            "user_email": request.user.email,
+        },
+    )
 
 
 def settings_view(request):
@@ -455,8 +532,9 @@ def register_view(request):
                 email=email, password=password, role="student"  # por defecto
             )
 
-            messages.success(request, "Usuario creado correctamente")
-            return redirect("login")
+            login(request, user)
+            messages.success(request, "Usuario creado correctamente. Ahora completa tu perfil estudiantil.")
+            return redirect("student_profile_setup")
 
         except Exception:
             messages.error(request, "Error al crear el usuario")

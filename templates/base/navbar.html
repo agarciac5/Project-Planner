@@ -11,6 +11,10 @@
         <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Inicio</a>
         <a href="{% url 'calendar' %}" class="{% if request.resolver_match.url_name == 'calendar' %}active{% endif %}">Calendario</a>
         <a href="{% url 'add_calendar' %}" class="{% if request.resolver_match.url_name == 'add_calendar' %}active{% endif %}">Generar horario</a>
+        <a href="{% url 'enrollment' %}" class="{% if request.resolver_match.url_name == 'enrollment' %}active{% endif %}">Matricula</a>
+        <a href="{% url 'my_student_schedule' %}" class="{% if request.resolver_match.url_name == 'my_student_schedule' %}active{% endif %}">Mi horario</a>
+        <a href="{% url 'teacher_complete_schedule' %}" class="{% if request.resolver_match.url_name == 'teacher_complete_schedule' %}active{% endif %}">Horario docente</a>
+        <a href="{% url 'student_complete_schedule' %}" class="{% if request.resolver_match.url_name == 'student_complete_schedule' %}active{% endif %}">Horario estudiantil</a>
         <a href="{% url 'semester_planner' %}" class="{% if request.resolver_match.url_name == 'semester_planner' %}active{% endif %}">Plan semestral</a>
         <a href="{% url 'saved_semester_runs' %}" class="{% if request.resolver_match.url_name == 'saved_semester_runs' or request.resolver_match.url_name == 'saved_semester_run_detail' %}active{% endif %}">Planes guardados</a>
         <a href="{% url 'subjects' %}" class="{% if request.resolver_match.url_name == 'subjects' or request.resolver_match.url_name == 'create_subject' %}active{% endif %}">Materias</a>
@@ -22,6 +26,7 @@
         <a href="{% url 'campuses' %}" class="{% if request.resolver_match.url_name == 'campuses' %}active{% endif %}">Sedes</a>
         <a href="{% url 'classrooms' %}" class="{% if request.resolver_match.url_name == 'classrooms' %}active{% endif %}">Aulas</a>
         <a href="{% url 'import' %}" class="{% if request.resolver_match.url_name == 'import' %}active{% endif %}">Importar</a>
+        <a href="{% url 'student_profile_setup' %}" class="{% if request.resolver_match.url_name == 'student_profile_setup' %}active{% endif %}">Perfil estudiantil</a>
     </nav>
 
     <div class="toolbar-actions">

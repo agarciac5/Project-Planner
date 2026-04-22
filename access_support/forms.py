@@ -90,3 +90,30 @@ class StudentForm(forms.ModelForm):
             "level",
             "jornada",
         ]
+
+
+class StudentSelfProfileForm(forms.ModelForm):
+    class Meta:
+        model = StudentProfile
+        fields = [
+            "full_name",
+            "document_type",
+            "document_number",
+            "address",
+            "program",
+            "faculty",
+            "campus",
+            "level",
+            "jornada",
+        ]
+        labels = {
+            "full_name": "Nombre completo",
+            "document_type": "Tipo de documento",
+            "document_number": "Numero de documento",
+            "address": "Direccion",
+            "program": "Programa",
+            "faculty": "Facultad",
+            "campus": "Sede",
+            "level": "Nivel",
+            "jornada": "Jornada",
+        }

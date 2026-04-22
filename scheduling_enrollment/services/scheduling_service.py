@@ -60,7 +60,7 @@ def _get_term(term_id: int) -> AcademicTerm:
     return AcademicTerm.objects.get(id=term_id)
 
 
-def _build_demand_courses(term: AcademicTerm) -> list[DemandCourse]:
+def _build_demand_courses(term: AcademicTerm, course_ids: set[int] | None = None) -> list[DemandCourse]:
     waiting = (
         EnrollmentQueue.objects.filter(status="waiting")
         .filter(Q(term=term) | Q(term__isnull=True))
@@ -68,6 +68,8 @@ def _build_demand_courses(term: AcademicTerm) -> list[DemandCourse]:
         .annotate(total=Count("id"))
         .order_by("-total")
     )
+    if course_ids:
+        waiting = waiting.filter(course__in=course_ids)
     courses = {
         course.id: course
         for course in Course.objects.filter(id__in=[item["course"] for item in waiting])
@@ -79,10 +81,8 @@ def _build_demand_courses(term: AcademicTerm) -> list[DemandCourse]:
         if not course:
             continue
         demand = item["total"]
-        if demand < 5:
-            continue
-        min_sections = math.ceil(demand / 20)
-        max_sections = max(min_sections, demand // 5)
+        min_sections = max(1, math.ceil(demand / 20))
+        max_sections = max(min_sections, max(1, demand // 5))
         demand_courses.append(
             DemandCourse(
                 course_id=course.id,
@@ -167,9 +167,13 @@ def _build_classroom_resources() -> list[ClassroomResource]:
 
 
 @transaction.atomic
-def generate_semester_schedule_options(term_id: int, auto_apply_best: bool = False) -> SemesterScheduleRun | None:
+def generate_semester_schedule_options(
+    term_id: int,
+    auto_apply_best: bool = False,
+    course_ids: set[int] | None = None,
+) -> SemesterScheduleRun | None:
     term = _get_term(term_id)
-    demand_courses = _build_demand_courses(term)
+    demand_courses = _build_demand_courses(term, course_ids=course_ids)
     if not demand_courses:
         return None
 
@@ -228,6 +232,8 @@ def generate_semester_schedule_options(term_id: int, auto_apply_best: bool = Fal
 
 @transaction.atomic
 def apply_semester_schedule_run(run: SemesterScheduleRun, option: SemesterScheduleOption | None = None) -> SemesterScheduleOption:
+    from scheduling_enrollment.services.enrollment_service import assign_waiting_students_to_groups
+
     best_option = option or run.options.prefetch_related(
         "assignments__course", "assignments__teacher", "assignments__classroom"
     ).filter(is_best=True).first()
@@ -280,6 +286,7 @@ def apply_semester_schedule_run(run: SemesterScheduleRun, option: SemesterSchedu
     best_option.save(update_fields=["selected", "applied"])
     run.status = "applied"
     run.save(update_fields=["status"])
+    assign_waiting_students_to_groups(term)
     return best_option
 
 

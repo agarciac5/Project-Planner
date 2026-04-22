@@ -12,6 +12,7 @@ from .views import (
     import_view,
     profile_view,
     settings_view,
+    student_profile_setup_view,
 )
 from .crud_views import (
     CampusListView,
@@ -46,6 +47,7 @@ urlpatterns = [
     path("plan-estudios/", study_plan_view, name="study_plan"),
     path("importar/", import_view, name="import"),
     path("perfil/", profile_view, name="profile"),
+    path("perfil-estudiantil/", student_profile_setup_view, name="student_profile_setup"),
     path("ajustes/", settings_view, name="settings"),
     path("sedes/", CampusListView.as_view(), name="campus_list"),
     path("sedes/crear/", CampusCreateView.as_view(), name="campus_create"),

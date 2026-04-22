@@ -112,6 +112,13 @@ class ScheduleSession(models.Model):
 class EnrollmentQueue(models.Model):
     student = models.ForeignKey("access_support.User", on_delete=models.CASCADE)
     course = models.ForeignKey("academic_core.Course", on_delete=models.CASCADE)
+    course_group = models.ForeignKey(
+        "scheduling_enrollment.CourseGroup",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="student_enrollments",
+    )
     term = models.ForeignKey(
         "academic_core.AcademicTerm",
         on_delete=models.SET_NULL,

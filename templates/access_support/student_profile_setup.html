@@ -1,0 +1,48 @@
+{% extends "base/base.html" %}
+{% block title %}Perfil Estudiantil{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{% if has_profile %}Editar perfil estudiantil{% else %}Completar perfil estudiantil{% endif %}</h1>
+    <p class="subtitle">Completa tu informacion academica para poder matricular materias y consultar tu horario.</p>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<div class="card">
+    <form method="post" class="profile-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="user_email">Correo institucional</label>
+                <input id="user_email" class="readonly-field" type="email" value="{{ user_email }}" readonly>
+                <div class="field-help">Este correo pertenece a tu cuenta de acceso y no puede modificarse desde aqui.</div>
+            </div>
+            <div class="form-group">
+                <label for="student_code_preview">Codigo estudiantil</label>
+                <input id="student_code_preview" class="readonly-field" type="text" value="{% if form.instance.student_code %}{{ form.instance.student_code }}{% else %}Se generara automaticamente{% endif %}" readonly>
+                <div class="field-help">El sistema asigna un codigo unico y evita repetir codigos existentes.</div>
+            </div>
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <div class="field-error">{{ field.errors|join:", " }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar perfil</button>
+    </form>
+</div>
+
+<style>
+.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.4rem;margin-bottom:1.5rem}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}.form-group{display:flex;flex-direction:column;gap:.45rem}.form-group input,.form-group select,.form-group textarea{padding:.7rem .8rem;border:1px solid #d1d5db;border-radius:8px}.readonly-field{background:#f8fafc;color:#475569;border-style:dashed;cursor:not-allowed}.field-help{font-size:.85rem;color:#64748b}.btn{padding:.7rem 1.15rem;border:none;border-radius:8px;cursor:pointer;margin-top:1rem}.btn-primary{background:#0f766e;color:#fff}.alert{padding:.85rem 1rem;border-radius:8px;margin-bottom:1rem}.alert-success{background:#dcfce7;color:#166534}.alert-warning{background:#fef3c7;color:#92400e}.field-error{color:#b91c1c;font-size:.9rem}
+</style>
+{% endblock %}

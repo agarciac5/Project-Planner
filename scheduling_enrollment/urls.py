@@ -2,8 +2,12 @@ from django.urls import path
 from .views import (
     generate_schedule_view,
     generate_schedule_view_students,
+    enrollment_view,
+    my_student_schedule_view,
     schedule_list_view,
     schedule_detail_view,
+    student_complete_schedule_view,
+    teacher_complete_schedule_view,
     semester_planner_view,
     save_semester_run_view,
     select_semester_option_view,
@@ -18,6 +22,10 @@ from .views import (
 urlpatterns = [
     path("generar-horario/", generate_schedule_view, name="generate_schedule"),
     path("generar-horario-estudiantes/", generate_schedule_view_students, name="generate_schedule_students"),
+    path("matricula/", enrollment_view, name="enrollment"),
+    path("mi-horario/", my_student_schedule_view, name="my_student_schedule"),
+    path("horario-docente-completo/", teacher_complete_schedule_view, name="teacher_complete_schedule"),
+    path("horario-estudiantil/", student_complete_schedule_view, name="student_complete_schedule"),
     path("plan-semestral/", semester_planner_view, name="semester_planner"),
     path("plan-semestral/<int:run_id>/guardar/", save_semester_run_view, name="save_semester_run"),
     path("plan-semestral/opcion/<int:option_id>/seleccionar/", select_semester_option_view, name="select_semester_option"),
