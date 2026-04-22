@@ -10,6 +10,7 @@ from academic_core.models import AcademicTerm, Course
 
 from .models import (
     CourseGroup,
+    Enrollment,
     EnrollmentQueue,
     ProposedSchedule,
     ScheduleSession,
@@ -20,6 +21,8 @@ from .models import (
 from .services.scheduling_service import (
     apply_semester_schedule_run,
     generate_semester_schedule_options,
+    get_run_assignment_summary,
+    publish_semester_schedule_run,
     revert_semester_schedule_option,
 )
 from .services.enrollment_service import (
@@ -101,6 +104,8 @@ def _build_semester_run_context(run):
         "options__assignments__teacher",
         "options__assignments__classroom",
     ).get(id=run.id)
+    run.has_applied_option = run.options.filter(applied=True).exists()
+    run.assignment_summary = get_run_assignment_summary(run)
 
     for option in run.options.all():
         assignments = []
@@ -651,15 +656,11 @@ def enrollment_view(request):
                 messages.info(request, "Ya tienes esta materia matriculada en el periodo activo.")
             else:
                 messages.info(request, "Ya tienes esta materia en lista de espera.")
-        elif outcome == "enrolled":
-            messages.success(request, "La materia fue matriculada directamente en un grupo disponible.")
         else:
-            assign_waiting_students_to_groups(active_term, course=course)
-            enrollment.refresh_from_db()
-            if enrollment.status == "enrolled":
-                messages.success(request, "La materia quedo matriculada despues de procesar la demanda del curso.")
-            else:
-                messages.success(request, "La solicitud fue enviada a la lista de espera del curso.")
+            messages.success(
+                request,
+                "La solicitud fue registrada. Esta materia se tendra en cuenta cuando se procese el plan semestral del periodo.",
+            )
         return redirect("enrollment")
 
     available_courses = list(get_student_available_courses(student_profile))
@@ -728,13 +729,20 @@ def my_student_schedule_view(request):
         messages.warning(request, "Tu usuario no tiene perfil estudiantil configurado. Debes crear o importar el StudentProfile antes de consultar tu horario.")
         return redirect("home")
     active_term = get_active_term()
-    schedule_context = {
-        "rows": [],
-        "course_count": 0,
-        "session_count": 0,
-    }
+    enrollments = []
     if active_term:
-        schedule_context = _student_schedule_rows(student_profile, active_term)
+        enrollments = (
+            Enrollment.objects.filter(
+                student=request.user,
+                term=active_term,
+                status="active",
+                course_group__semester_assignments__option__run__status="published",
+            )
+            .select_related("course_group__course", "course_group__teacher")
+            .prefetch_related("course_group__sessions__classroom")
+            .distinct()
+            .order_by("course_group__course__code")
+        )
 
     return render(
         request,
@@ -742,7 +750,44 @@ def my_student_schedule_view(request):
         {
             "student_profile": student_profile,
             "active_term": active_term,
-            **schedule_context,
+            "enrollments": enrollments,
+        },
+    )
+
+
+@login_required
+def my_teacher_schedule_view(request):
+    if request.user.role != "teacher":
+        messages.warning(request, "Este apartado de horario esta disponible solo para docentes.")
+        return redirect("home")
+
+    teacher = getattr(request.user, "teacher_profile", None)
+    if not teacher:
+        messages.warning(request, "Tu usuario no esta vinculado a un perfil docente.")
+        return redirect("home")
+
+    active_term = get_active_term()
+    groups = []
+    if active_term:
+        groups = (
+            CourseGroup.objects.filter(
+                teacher=teacher,
+                term=active_term,
+                semester_assignments__option__run__status="published",
+            )
+            .select_related("course")
+            .prefetch_related("sessions__classroom", "enrollments__student")
+            .distinct()
+            .order_by("course__code")
+        )
+
+    return render(
+        request,
+        "scheduling/my_teacher_schedule.html",
+        {
+            "teacher": teacher,
+            "active_term": active_term,
+            "groups": groups,
         },
     )
 
@@ -922,6 +967,15 @@ def semester_planner_view(request):
 
     run, options = _build_semester_run_context(run)
     messages.success(request, "Se genero el top 3 de opciones para el semestre. Ahora puedes elegir manualmente una.")
+    unschedulable_courses = options[0]["summary"].get("unschedulable_courses", []) if options else []
+    if unschedulable_courses:
+        course_labels = ", ".join(course["code"] for course in unschedulable_courses[:5])
+        if len(unschedulable_courses) > 5:
+            course_labels = f"{course_labels} y {len(unschedulable_courses) - 5} mas"
+        messages.warning(
+            request,
+            f"Se genero un plan parcial. Quedaron cursos sin programar: {course_labels}.",
+        )
 
     context["run"] = run
     context["options"] = options
@@ -946,7 +1000,7 @@ def select_semester_option_view(request, option_id):
         option.run.options.exclude(id=option.id).update(selected=False)
         option.selected = True
         option.save(update_fields=["selected"])
-        if option.run.status == "draft":
+        if option.run.status in ["draft", "saved"]:
             option.run.status = "saved"
             option.run.save(update_fields=["status"])
         messages.success(request, "La opcion fue fijada como seleccionada.")
@@ -981,7 +1035,11 @@ def apply_semester_option_view(request, option_id):
             messages.warning(request, "Ya existe otra opcion aplicada en este plan. Revierte esa aplicacion antes de aplicar una nueva.")
             return redirect("saved_semester_run_detail", run_id=option.run.id)
         apply_semester_schedule_run(option.run, option=option)
-        messages.success(request, "La opcion seleccionada fue aplicada y convertida en grupos reales.")
+        option.run.refresh_from_db()
+        if option.run.status == "ready_to_publish":
+            messages.success(request, "La opcion seleccionada fue aplicada. Los horarios estan listos para ser emitidos.")
+        else:
+            messages.warning(request, "La opcion fue aplicada, pero aun quedan estudiantes pendientes por ubicar antes de emitir los horarios.")
     return redirect("saved_semester_run_detail", run_id=option.run.id)
 
 
@@ -996,21 +1054,37 @@ def revert_semester_option_view(request, option_id):
     return redirect("saved_semester_run_detail", run_id=option.run.id)
 
 
+def publish_semester_run_view(request, run_id):
+    run = get_object_or_404(SemesterScheduleRun, id=run_id)
+    if request.method == "POST":
+        try:
+            publish_semester_schedule_run(run)
+            messages.success(request, "Los horarios fueron publicados para docentes y estudiantes.")
+        except ValueError as exc:
+            messages.warning(request, str(exc))
+    return redirect("saved_semester_run_detail", run_id=run.id)
+
+
 def delete_semester_run_view(request, run_id):
     run = get_object_or_404(SemesterScheduleRun, id=run_id)
     if request.method == "POST":
+        applied_option = run.options.filter(applied=True).first()
+        if applied_option:
+            revert_semester_schedule_option(applied_option)
         run.delete()
         messages.success(request, "El plan semestral fue eliminado.")
     return redirect("saved_semester_runs")
 
 
 def saved_semester_runs_view(request):
-    runs = (
-        SemesterScheduleRun.objects.filter(status__in=["saved", "applied"])
+    runs = list(
+        SemesterScheduleRun.objects.filter(status__in=["saved", "ready_to_publish", "published"])
         .prefetch_related("options")
         .select_related("term")
         .order_by("-created_at")
     )
+    for run in runs:
+        run.assignment_summary = get_run_assignment_summary(run)
     return render(
         request,
         "scheduling/saved_semester_runs.html",

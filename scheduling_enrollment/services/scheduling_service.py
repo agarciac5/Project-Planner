@@ -3,6 +3,7 @@ from datetime import time
 
 from django.db import transaction
 from django.db.models import Count, Q
+from django.utils import timezone
 
 from academic_core.models import AcademicTerm, Course
 from classrooms.models import Classroom, TimeSlot
@@ -11,10 +12,12 @@ from scheduling_enrollment.algorithms.genetic_scheduler import (
     DemandCourse,
     TeacherResource,
     TimeSlotResource,
+    _build_feasible_candidates,
     run_semester_planner,
 )
 from scheduling_enrollment.models import (
     CourseGroup,
+    Enrollment,
     EnrollmentQueue,
     ProposedSchedule,
     ScheduleSession,
@@ -166,6 +169,177 @@ def _build_classroom_resources() -> list[ClassroomResource]:
     ]
 
 
+def _split_schedulable_demand_courses(
+    demand_courses: list[DemandCourse],
+    teacher_resources: list[TeacherResource],
+    classroom_resources: list[ClassroomResource],
+    timeslots: list[TimeSlotResource],
+) -> tuple[list[DemandCourse], list[dict], int]:
+    feasible_candidates = _build_feasible_candidates(
+        {course.course_id: course for course in demand_courses},
+        {teacher.teacher_id: teacher for teacher in teacher_resources},
+        {classroom.classroom_id: classroom for classroom in classroom_resources},
+        {slot.index: slot for slot in timeslots},
+    )
+
+    schedulable_courses: list[DemandCourse] = []
+    unschedulable_courses: list[dict] = []
+    unschedulable_demand = 0
+
+    for course in demand_courses:
+        if feasible_candidates.get(course.course_id):
+            schedulable_courses.append(course)
+            continue
+
+        unschedulable_demand += course.demand
+        unschedulable_courses.append(
+            {
+                "course_id": course.course_id,
+                "code": course.code,
+                "name": course.name,
+                "demand": course.demand,
+                "reason": "Sin combinaciones viables de docente, aula y horario.",
+            }
+        )
+
+    return schedulable_courses, unschedulable_courses, unschedulable_demand
+
+
+def get_run_assignment_summary(run: SemesterScheduleRun) -> dict:
+    from scheduling_enrollment.services.enrollment_service import summarize_pending_requests
+
+    applied_option = (
+        run.options.prefetch_related("assignments__course")
+        .filter(applied=True)
+        .first()
+    )
+    selected_option = (
+        run.options.prefetch_related("assignments__course")
+        .filter(selected=True)
+        .first()
+    )
+    reference_option = applied_option or selected_option or run.options.first()
+    planned_course_ids = []
+    if reference_option:
+        planned_course_ids = list(
+            reference_option.assignments.values_list("course_id", flat=True).distinct()
+        )
+
+    demand_qs = EnrollmentQueue.objects.filter(term=run.term)
+    if planned_course_ids:
+        demand_qs = demand_qs.filter(course_id__in=planned_course_ids)
+
+    waiting_qs = demand_qs.filter(status="waiting")
+    grouped_pending = (
+        waiting_qs.values("course__code", "course__name")
+        .annotate(total=Count("id"))
+        .order_by("-total", "course__code")
+    )
+    pending_by_course = [
+        {
+            "code": row["course__code"],
+            "name": row["course__name"],
+            "pending": row["total"],
+            "reason": "Sin cupo suficiente o conflicto de horario al asignar estudiantes.",
+        }
+        for row in grouped_pending
+    ]
+    pending_by_student = summarize_pending_requests(run.term, option=applied_option)
+
+    assignment_qs = Enrollment.objects.filter(term=run.term, status="active")
+    if planned_course_ids:
+        assignment_qs = assignment_qs.filter(course_group__course_id__in=planned_course_ids)
+    if applied_option:
+        assignment_qs = assignment_qs.filter(
+            course_group__semester_assignments__option=applied_option
+        )
+
+    assigned_by_course_rows = (
+        assignment_qs.values("course_group__course__code", "course_group__course__name")
+        .annotate(total=Count("id"))
+        .order_by("course_group__course__code")
+    )
+    assigned_by_course = [
+        {
+            "code": row["course_group__course__code"],
+            "name": row["course_group__course__name"],
+            "assigned": row["total"],
+        }
+        for row in assigned_by_course_rows
+    ]
+
+    groups_qs = CourseGroup.objects.filter(term=run.term)
+    sessions_qs = ScheduleSession.objects.filter(schedule__term=run.term)
+    if applied_option:
+        groups_qs = groups_qs.filter(semester_assignments__option=applied_option)
+        sessions_qs = sessions_qs.filter(group__semester_assignments__option=applied_option)
+    elif planned_course_ids:
+        groups_qs = groups_qs.filter(course_id__in=planned_course_ids)
+        sessions_qs = sessions_qs.filter(group__course_id__in=planned_course_ids)
+
+    demand_total = demand_qs.count()
+    waiting_total = waiting_qs.count()
+    assigned_total = assignment_qs.count()
+    groups_created = groups_qs.distinct().count()
+    sessions_created = sessions_qs.distinct().count()
+    ready_to_publish = bool(applied_option) and waiting_total == 0
+
+    blockers = []
+    if not applied_option:
+        blockers.append("Debes aplicar una opcion antes de emitir horarios.")
+    if waiting_total:
+        blockers.append(
+            f"Quedan {waiting_total} solicitudes pendientes por ubicar antes de publicar."
+        )
+
+    stages = [
+        {
+            "label": "Solicitudes",
+            "description": "Estudiantes eligen materias y se registra la demanda.",
+            "done": demand_total > 0,
+            "current": demand_total > 0 and not run.options.exists(),
+        },
+        {
+            "label": "Opciones",
+            "description": "El algoritmo genetico genera escenarios de apertura.",
+            "done": run.options.exists(),
+            "current": run.options.exists() and not reference_option,
+        },
+        {
+            "label": "Seleccion",
+            "description": "Se fija una opcion para convertirla en grupos reales.",
+            "done": bool(reference_option and reference_option.selected),
+            "current": run.options.exists() and not bool(reference_option and reference_option.selected),
+        },
+        {
+            "label": "Asignacion",
+            "description": "Los estudiantes se distribuyen en grupos sin sobrecargar cupos.",
+            "done": bool(applied_option) and waiting_total == 0,
+            "current": bool(applied_option) and waiting_total > 0,
+        },
+        {
+            "label": "Emision",
+            "description": "Se publican los horarios finales para estudiantes y docentes.",
+            "done": run.status == "published",
+            "current": run.status == "ready_to_publish",
+        },
+    ]
+
+    return {
+        "demand_total": demand_total,
+        "assigned_total": assigned_total,
+        "waiting_total": waiting_total,
+        "groups_created": groups_created,
+        "sessions_created": sessions_created,
+        "ready_to_publish": ready_to_publish,
+        "pending_by_course": pending_by_course,
+        "pending_by_student": pending_by_student,
+        "assigned_by_course": assigned_by_course,
+        "blockers": blockers,
+        "stages": stages,
+    }
+
+
 @transaction.atomic
 def generate_semester_schedule_options(
     term_id: int,
@@ -176,6 +350,7 @@ def generate_semester_schedule_options(
     demand_courses = _build_demand_courses(term, course_ids=course_ids)
     if not demand_courses:
         return None
+    total_demand = sum(course.demand for course in demand_courses)
 
     teacher_resources = _build_teacher_resources(
         term,
@@ -183,8 +358,19 @@ def generate_semester_schedule_options(
     )
     classroom_resources = _build_classroom_resources()
     timeslots = _build_timeslots()
+    schedulable_courses, unschedulable_courses, unschedulable_demand = (
+        _split_schedulable_demand_courses(
+            demand_courses,
+            teacher_resources,
+            classroom_resources,
+            timeslots,
+        )
+    )
+    if not schedulable_courses:
+        return None
+
     results = run_semester_planner(
-        demand_courses=demand_courses,
+        demand_courses=schedulable_courses,
         teachers=teacher_resources,
         classrooms=classroom_resources,
         timeslots=timeslots,
@@ -194,17 +380,23 @@ def generate_semester_schedule_options(
 
     teacher_map = {teacher.id: teacher for teacher in Teacher.objects.filter(id__in=[t.teacher_id for t in teacher_resources])}
     classroom_map = {classroom.id: classroom for classroom in Classroom.objects.filter(id__in=[c.classroom_id for c in classroom_resources])}
-    course_map = {course.id: course for course in Course.objects.filter(id__in=[c.course_id for c in demand_courses])}
+    course_map = {course.id: course for course in Course.objects.filter(id__in=[c.course_id for c in schedulable_courses])}
     timeslot_map = {slot.index: slot for slot in timeslots}
 
     run = SemesterScheduleRun.objects.create(term=term)
     for rank, result in enumerate(results, start=1):
+        result.summary["unschedulable_courses"] = unschedulable_courses
+        result.summary["unschedulable_course_count"] = len(unschedulable_courses)
+        result.summary["unschedulable_demand"] = unschedulable_demand
+        result.summary["schedulable_demand_total"] = result.summary["demand_total"]
+        result.summary["demand_total"] = total_demand
+        result.summary["uncovered_students"] += unschedulable_demand
         option = SemesterScheduleOption.objects.create(
             run=run,
             rank=rank,
             score=result.score,
             demand_covered=result.summary["demand_covered"],
-            demand_total=result.summary["demand_total"],
+            demand_total=total_demand,
             sections_opened=result.summary["sections_opened"],
             is_best=rank == 1,
             selected=False,
@@ -284,9 +476,14 @@ def apply_semester_schedule_run(run: SemesterScheduleRun, option: SemesterSchedu
     best_option.selected = True
     best_option.applied = True
     best_option.save(update_fields=["selected", "applied"])
-    run.status = "applied"
+    assign_waiting_students_to_groups(term, option=best_option)
+    pending_requests = EnrollmentQueue.objects.filter(
+        term=term,
+        status="waiting",
+        course_id__in=best_option.assignments.values_list("course_id", flat=True).distinct(),
+    ).exists()
+    run.status = "saved" if pending_requests else "ready_to_publish"
     run.save(update_fields=["status"])
-    assign_waiting_students_to_groups(term)
     return best_option
 
 
@@ -299,6 +496,11 @@ def revert_semester_schedule_option(option: SemesterScheduleOption) -> SemesterS
     schedule_ids = [assignment.generated_schedule_id for assignment in assignments if assignment.generated_schedule_id]
 
     if group_ids:
+        Enrollment.objects.filter(course_group_id__in=group_ids).delete()
+        EnrollmentQueue.objects.filter(course_group_id__in=group_ids).update(
+            status="waiting",
+            course_group=None,
+        )
         CourseGroup.objects.filter(id__in=group_ids).delete()
 
     if schedule_ids:
@@ -315,6 +517,19 @@ def revert_semester_schedule_option(option: SemesterScheduleOption) -> SemesterS
     run = option.run
     if not run.options.filter(applied=True).exists():
         run.status = "saved" if run.options.filter(selected=True).exists() else "draft"
-        run.save(update_fields=["status"])
+        run.published_at = None
+        run.save(update_fields=["status", "published_at"])
 
     return option
+
+
+@transaction.atomic
+def publish_semester_schedule_run(run: SemesterScheduleRun) -> SemesterScheduleRun:
+    if not run.options.filter(applied=True).exists():
+        raise ValueError("No existe una opcion aplicada para publicar.")
+    if run.status != "ready_to_publish":
+        raise ValueError("Este plan aun no esta listo para emitirse porque quedan estudiantes pendientes o ajustes por resolver.")
+    run.status = "published"
+    run.published_at = timezone.now()
+    run.save(update_fields=["status", "published_at"])
+    return run

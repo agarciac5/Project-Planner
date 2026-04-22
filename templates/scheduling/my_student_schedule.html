@@ -4,16 +4,16 @@
 {% block content %}
 <div class="page-header">
   <h1>Mi Horario</h1>
-  <p class="subtitle">Este horario se construye con tus materias matriculadas en el periodo activo.</p>
+  <p class="subtitle">Aqui ves tu horario emitido para el periodo activo.</p>
 </div>
 
 {% if active_term %}
 <div class="card">
   <h2>{{ student_profile.full_name|default:student_profile.user.email }}</h2>
-  <p class="subtitle">Periodo activo: {{ active_term.name }} | {{ course_count }} materias | {{ session_count }} sesiones</p>
+  <p class="subtitle">Periodo activo: {{ active_term.name }} | {{ enrollments|length }} materias emitidas</p>
 </div>
 
-{% if rows %}
+{% if enrollments %}
 <div class="card">
   <table class="schedule-table">
     <thead>
@@ -25,29 +25,29 @@
         <th>Dia</th>
         <th>Hora</th>
         <th>Ubicacion</th>
-        <th>Estado</th>
       </tr>
     </thead>
     <tbody>
-      {% for row in rows %}
-      <tr>
-        <td><code>{{ row.course_code }}</code></td>
-        <td>{{ row.course_name }}</td>
-        <td>{{ row.section }}</td>
-        <td>{{ row.teacher }}</td>
-        <td>{{ row.day }}</td>
-        <td>{{ row.start_time }}{% if row.end_time != "-" %} - {{ row.end_time }}{% endif %}</td>
-        <td>{{ row.location }}</td>
-        <td>{{ row.status }}</td>
-      </tr>
+      {% for enrollment in enrollments %}
+        {% for session in enrollment.course_group.sessions.all %}
+        <tr>
+          <td><code>{{ enrollment.course_group.course.code }}</code></td>
+          <td>{{ enrollment.course_group.course.name }}</td>
+          <td>{{ enrollment.course_group.nrc|default:enrollment.course_group.id }}</td>
+          <td>{{ enrollment.course_group.teacher|default:"Pendiente" }}</td>
+          <td>{{ session.get_day_display }}</td>
+          <td>{{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}</td>
+          <td>{% if session.classroom %}{{ session.classroom.classroom_id }}{% else %}Virtual{% endif %}</td>
+        </tr>
+        {% endfor %}
       {% endfor %}
     </tbody>
   </table>
 </div>
 {% else %}
 <div class="card empty-card">
-  <h3>Sin materias matriculadas</h3>
-  <p>Aun no tienes materias inscritas en el periodo activo.</p>
+  <h3>Sin horario emitido</h3>
+  <p>Todavia no hay un horario publicado para tus materias en el periodo activo.</p>
 </div>
 {% endif %}
 {% else %}

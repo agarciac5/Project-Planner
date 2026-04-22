@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
   <h1>Matricula</h1>
-  <p class="subtitle">Selecciona las materias del periodo activo. Si no hay cupo, tu solicitud entra a lista de espera y el sistema abre nuevos grupos cuando la demanda lo requiere.</p>
+  <p class="subtitle">Selecciona las materias del periodo activo. Tus solicitudes se acumulan y luego el plan semestral abre grupos, asigna docentes, aulas y finalmente publica los horarios.</p>
 </div>
 
 {% if messages %}
@@ -27,8 +27,8 @@
         <th>Semestre</th>
         <th>Estado</th>
         <th>Grupo</th>
-        <th>En espera</th>
-        <th>Cupos</th>
+        <th>Solicitudes</th>
+        <th>Estado actual</th>
         <th>Accion</th>
       </tr>
     </thead>
@@ -41,7 +41,15 @@
         <td>{{ row.status }}</td>
         <td>{{ row.group_label }}</td>
         <td>{{ row.waiting_count }}</td>
-        <td>{% if row.has_capacity %}Disponible{% else %}Sin cupo{% endif %}</td>
+        <td>
+          {% if row.group_label != "-" %}
+          Grupo asignado
+          {% elif row.has_capacity %}
+          En espera de emision
+          {% else %}
+          Pendiente por demanda
+          {% endif %}
+        </td>
         <td>
           {% if row.can_request %}
           <form method="post">

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import (
     CourseGroup,
+    Enrollment,
     EnrollmentQueue,
     ProposedSchedule,
     ScheduleSession,
@@ -31,13 +32,19 @@ class ScheduleSessionAdmin(admin.ModelAdmin):
 
 @admin.register(EnrollmentQueue)
 class EnrollmentQueueAdmin(admin.ModelAdmin):
-    list_display = ("student", "course", "term", "status", "request_date")
+    list_display = ("student", "course", "course_group", "term", "status", "request_date")
     list_filter = ("status", "term")
+
+
+@admin.register(Enrollment)
+class EnrollmentAdmin(admin.ModelAdmin):
+    list_display = ("student", "course_group", "term", "status", "assigned_at")
+    list_filter = ("term", "status")
 
 
 @admin.register(SemesterScheduleRun)
 class SemesterScheduleRunAdmin(admin.ModelAdmin):
-    list_display = ("term", "status", "created_at")
+    list_display = ("term", "status", "created_at", "published_at")
     list_filter = ("status", "term")
 
 
@@ -59,5 +66,6 @@ class SemesterScheduleAssignmentAdmin(admin.ModelAdmin):
         "start_time",
         "students_assigned",
         "generated_group",
+        "generated_schedule",
     )
     list_filter = ("day", "option__run__term")

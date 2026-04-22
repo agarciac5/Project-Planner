@@ -6,8 +6,12 @@ from django.test import TestCase
 
 from academic_core.models import AcademicProgram, AcademicTerm, Campus, Course, Faculty, StudyPlan
 from classrooms.models import Classroom, TimeSlot
-from scheduling_enrollment.models import CourseGroup, EnrollmentQueue, ScheduleSession
-from scheduling_enrollment.services.scheduling_service import generate_semester_schedule_options
+from scheduling_enrollment.models import CourseGroup, Enrollment, EnrollmentQueue, ScheduleSession
+from scheduling_enrollment.services.enrollment_service import request_student_enrollment
+from scheduling_enrollment.services.scheduling_service import (
+    generate_semester_schedule_options,
+    get_run_assignment_summary,
+)
 from teaching.models import Availability, ContractRule, Teacher
 
 
@@ -101,7 +105,7 @@ class SemesterPlannerServiceTests(TestCase):
         run = generate_semester_schedule_options(self.term.id, auto_apply_best=True)
 
         self.assertIsNotNone(run)
-        self.assertEqual(run.status, "applied")
+        self.assertEqual(run.status, "ready_to_publish")
         self.assertGreaterEqual(run.options.count(), 1)
 
         best_option = run.options.get(is_best=True)
@@ -110,3 +114,91 @@ class SemesterPlannerServiceTests(TestCase):
         self.assertGreater(best_option.assignments.count(), 0)
         self.assertGreater(CourseGroup.objects.count(), 0)
         self.assertGreater(ScheduleSession.objects.count(), 0)
+        self.assertEqual(Enrollment.objects.filter(term=self.term, status="active").count(), 10)
+        self.assertEqual(EnrollmentQueue.objects.filter(term=self.term, status="enrolled").count(), 10)
+
+    def test_generates_partial_plan_when_some_courses_have_no_feasible_resources(self):
+        extra_course = Course.objects.create(
+            name="Redes",
+            code="SW201",
+            credits=3,
+            semester=2,
+            study_plan=self.study_plan,
+        )
+        for index in range(6):
+            student = self.user_model.objects.create_user(
+                email=f"extra{index}@test.com",
+                password="secret123",
+                role="student",
+            )
+            EnrollmentQueue.objects.create(
+                student=student,
+                course=extra_course,
+                term=self.term,
+                status="waiting",
+            )
+
+        random.seed(7)
+        run = generate_semester_schedule_options(self.term.id, auto_apply_best=False)
+
+        self.assertIsNotNone(run)
+        best_option = run.options.get(is_best=True)
+        self.assertEqual(best_option.demand_total, 16)
+        self.assertEqual(best_option.demand_covered, 10)
+        self.assertEqual(best_option.summary["unschedulable_course_count"], 1)
+        self.assertEqual(best_option.summary["unschedulable_demand"], 6)
+        self.assertEqual(best_option.summary["uncovered_students"], 6)
+        self.assertEqual(best_option.summary["unschedulable_courses"][0]["code"], "SW201")
+
+    def test_student_request_only_registers_demand_until_semester_plan_is_processed(self):
+        pending_student = self.user_model.objects.create_user(
+            email="newstudent@test.com",
+            password="secret123",
+            role="student",
+        )
+
+        enrollment, outcome = request_student_enrollment(
+            pending_student,
+            self.course,
+            self.term,
+        )
+
+        self.assertEqual(outcome, "waiting")
+        self.assertEqual(enrollment.status, "waiting")
+        self.assertEqual(CourseGroup.objects.count(), 0)
+        self.assertEqual(Enrollment.objects.count(), 0)
+
+    def test_assignment_summary_reports_ready_to_publish_when_everyone_is_assigned(self):
+        random.seed(7)
+
+        run = generate_semester_schedule_options(self.term.id, auto_apply_best=True)
+        summary = get_run_assignment_summary(run)
+
+        self.assertEqual(run.status, "ready_to_publish")
+        self.assertTrue(summary["ready_to_publish"])
+        self.assertEqual(summary["waiting_total"], 0)
+        self.assertEqual(summary["assigned_total"], 10)
+        self.assertGreater(summary["groups_created"], 0)
+        self.assertTrue(any(stage["label"] == "Asignacion" and stage["done"] for stage in summary["stages"]))
+
+    def test_assignment_summary_includes_pending_students_detail(self):
+        random.seed(7)
+
+        run = generate_semester_schedule_options(self.term.id, auto_apply_best=True)
+        late_student = self.user_model.objects.create_user(
+            email="late@test.com",
+            password="secret123",
+            role="student",
+        )
+        EnrollmentQueue.objects.create(
+            student=late_student,
+            course=self.course,
+            term=self.term,
+            status="waiting",
+        )
+
+        summary = get_run_assignment_summary(run)
+
+        self.assertEqual(summary["waiting_total"], 1)
+        self.assertEqual(len(summary["pending_by_student"]), 1)
+        self.assertEqual(summary["pending_by_student"][0]["student_email"], "late@test.com")

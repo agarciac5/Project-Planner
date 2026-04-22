@@ -141,7 +141,8 @@ class SemesterScheduleRun(models.Model):
     STATUS_CHOICES = [
         ("draft", "Borrador"),
         ("saved", "Guardado"),
-        ("applied", "Aplicado"),
+        ("ready_to_publish", "Listo para emitir"),
+        ("published", "Publicado"),
     ]
 
     term = models.ForeignKey(
@@ -151,6 +152,7 @@ class SemesterScheduleRun(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
+    published_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -232,3 +234,42 @@ class SemesterScheduleAssignment(models.Model):
             f"{self.course.code} - Sec {self.section_number} "
             f"{self.day} {self.start_time}-{self.end_time}"
         )
+
+
+class Enrollment(models.Model):
+    STATUS_CHOICES = [
+        ("active", "Activa"),
+        ("cancelled", "Cancelada"),
+    ]
+
+    request = models.OneToOneField(
+        EnrollmentQueue,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollment_record",
+    )
+    student = models.ForeignKey(
+        "access_support.User",
+        on_delete=models.CASCADE,
+        related_name="enrollments",
+    )
+    course_group = models.ForeignKey(
+        CourseGroup,
+        on_delete=models.CASCADE,
+        related_name="enrollments",
+    )
+    term = models.ForeignKey(
+        "academic_core.AcademicTerm",
+        on_delete=models.CASCADE,
+        related_name="enrollments",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("student", "course_group")
+        ordering = ["course_group__course__code", "student__email"]
+
+    def __str__(self):
+        return f"{self.student} -> {self.course_group}"

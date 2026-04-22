@@ -4,8 +4,14 @@
 {% block content %}
 <div class="page-header">
   <h1>Planes Semestrales Guardados</h1>
-  <p class="subtitle">Consulta los resultados que decidiste conservar para compararlos o revisarlos despues.</p>
+  <p class="subtitle">Consulta los planes conservados, revisa su estado y emite los horarios cuando ya esten listos.</p>
 </div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
 
 {% if runs %}
 <div class="runs-grid">
@@ -14,6 +20,11 @@
     <h3>{{ run.term.name }}</h3>
     <p><strong>Estado:</strong> {{ run.get_status_display }}</p>
     <p><strong>Generado:</strong> {{ run.created_at|date:"Y-m-d H:i" }}</p>
+    {% if run.status == "ready_to_publish" %}
+    <p class="status-ready">Los horarios estan listos para ser emitidos.</p>
+    {% elif run.status == "published" and run.published_at %}
+    <p class="status-published">Publicado el {{ run.published_at|date:"Y-m-d H:i" }}</p>
+    {% endif %}
     {% with best=run.options.first %}
       {% if best %}
       <p><strong>Mejor score:</strong> {{ best.score }}/100</p>
@@ -21,6 +32,11 @@
       <p><strong>Cobertura:</strong> {{ best.demand_covered }}/{{ best.demand_total }}</p>
       {% endif %}
     {% endwith %}
+    <p><strong>Asignados:</strong> {{ run.assignment_summary.assigned_total }}</p>
+    <p><strong>Pendientes:</strong> {{ run.assignment_summary.waiting_total }}</p>
+    {% if run.assignment_summary.waiting_total %}
+    <p class="status-warning">Aun no se puede emitir: quedan solicitudes sin ubicar.</p>
+    {% endif %}
     <div class="card-actions">
       <a href="{% url 'saved_semester_run_detail' run.id %}" class="btn btn-primary">Ver detalle</a>
       <form method="post" action="{% url 'delete_semester_run' run.id %}" onsubmit="return confirm('¿Eliminar este plan guardado?');">
@@ -39,6 +55,6 @@
 {% endif %}
 
 <style>
-.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.runs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}.run-card,.empty-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1.2rem}.run-card h3{margin-top:0;margin-bottom:.8rem}.run-card p{margin:.35rem 0;color:#374151}.card-actions{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.9rem}.btn{padding:.65rem 1.15rem;border:none;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}.btn-primary{background:#0f766e;color:#fff}.btn-danger{background:#b91c1c;color:#fff}
+.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.alert{padding:.85rem 1rem;border-radius:8px;margin-bottom:1rem}.alert-success{background:#dcfce7;color:#166534}.alert-warning{background:#fef3c7;color:#92400e}.alert-error{background:#fee2e2;color:#991b1b}.runs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}.run-card,.empty-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1.2rem}.run-card h3{margin-top:0;margin-bottom:.8rem}.run-card p{margin:.35rem 0;color:#374151}.status-ready{color:#166534;font-weight:600}.status-published{color:#92400e;font-weight:600}.status-warning{color:#b45309;font-weight:600}.card-actions{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.9rem}.btn{padding:.65rem 1.15rem;border:none;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}.btn-primary{background:#0f766e;color:#fff}.btn-danger{background:#b91c1c;color:#fff}
 </style>
 {% endblock %}

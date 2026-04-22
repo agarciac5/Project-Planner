@@ -13,6 +13,7 @@
         <a href="{% url 'add_calendar' %}" class="{% if request.resolver_match.url_name == 'add_calendar' %}active{% endif %}">Generar horario</a>
         <a href="{% url 'enrollment' %}" class="{% if request.resolver_match.url_name == 'enrollment' %}active{% endif %}">Matricula</a>
         <a href="{% url 'my_student_schedule' %}" class="{% if request.resolver_match.url_name == 'my_student_schedule' %}active{% endif %}">Mi horario</a>
+        <a href="{% url 'my_teacher_schedule' %}" class="{% if request.resolver_match.url_name == 'my_teacher_schedule' %}active{% endif %}">Mi horario docente</a>
         <a href="{% url 'teacher_complete_schedule' %}" class="{% if request.resolver_match.url_name == 'teacher_complete_schedule' %}active{% endif %}">Horario docente</a>
         <a href="{% url 'student_complete_schedule' %}" class="{% if request.resolver_match.url_name == 'student_complete_schedule' %}active{% endif %}">Horario estudiantil</a>
         <a href="{% url 'semester_planner' %}" class="{% if request.resolver_match.url_name == 'semester_planner' %}active{% endif %}">Plan semestral</a>

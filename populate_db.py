@@ -8,6 +8,7 @@ django.setup()
 
 from django.contrib.auth import get_user_model
 
+from access_support.models import StudentProfile
 from academic_core.models import AcademicProgram, AcademicTerm, Campus, Course, Faculty, StudyPlan
 from classrooms.models import Classroom, TimeSlot
 from scheduling_enrollment.models import EnrollmentQueue, TeacherActivity
@@ -54,9 +55,19 @@ TIMESLOTS = [
 CLASSROOMS = [
     ("A101", "Salon flexible 1", 1, 25, "SALON"),
     ("A102", "Salon flexible 2", 1, 20, "SALON"),
+    ("A103", "Salon flexible 3", 1, 30, "SALON"),
+    ("A104", "Salon flexible 4", 1, 35, "SALON"),
     ("B201", "Laboratorio software", 2, 20, "SISTEMAS"),
     ("B202", "Laboratorio analitica", 2, 20, "SISTEMAS"),
+    ("B203", "Laboratorio desarrollo", 2, 24, "SISTEMAS"),
+    ("B204", "Laboratorio redes", 2, 24, "SISTEMAS"),
     ("C301", "Salon magistral", 3, 40, "SALON"),
+    ("C302", "Salon magistral 2", 3, 45, "SALON"),
+    ("C303", "Salon magistral 3", 3, 50, "SALON"),
+    ("D401", "Aula de innovacion", 4, 28, "SALON"),
+    ("D402", "Aula de proyectos", 4, 32, "SALON"),
+    ("D403", "Laboratorio IA", 4, 22, "SISTEMAS"),
+    ("E501", "Auditorio academico", 5, 60, "SALON"),
 ]
 
 TEACHER_DEFINITIONS = [
@@ -134,19 +145,182 @@ TEACHER_DEFINITIONS = [
         ],
         "activities": [],
     },
+    {
+        "teacher_id": "DOC-SW-006",
+        "first_name": "Paula",
+        "last_name": "Ramirez",
+        "contract_type": "Tiempo Completo",
+        "qualified_codes": ["ISOFBL083", "ISOFBL103", "ISOFBL123", "ISOFBL223", "ISOFBL233"],
+        "availability": [
+            ("Monday", time(14, 0), time(18, 0)),
+            ("Tuesday", time(7, 0), time(12, 0)),
+            ("Thursday", time(7, 0), time(12, 0)),
+            ("Friday", time(7, 0), time(12, 0)),
+        ],
+        "activities": [
+            ("investigacion", "Friday", time(10, 0), time(11, 30)),
+        ],
+    },
+    {
+        "teacher_id": "DOC-SW-007",
+        "first_name": "Natalia",
+        "last_name": "Moreno",
+        "contract_type": "Medio Tiempo",
+        "qualified_codes": ["CBASBL021", "CBASBL151", "ESTA1061", "ISOFBL021", "ISOFBL031"],
+        "availability": [
+            ("Monday", time(7, 0), time(12, 0)),
+            ("Tuesday", time(14, 0), time(18, 0)),
+            ("Thursday", time(14, 0), time(18, 0)),
+        ],
+        "activities": [],
+    },
+    {
+        "teacher_id": "DOC-SW-008",
+        "first_name": "Mauricio",
+        "last_name": "Torres",
+        "contract_type": "Tiempo Completo",
+        "qualified_codes": ["ISOFBL013", "ISOFBL023", "ISOFBL033", "ISOFBL043", "ISOFBL053"],
+        "availability": [
+            ("Monday", time(7, 0), time(12, 0)),
+            ("Wednesday", time(14, 0), time(18, 0)),
+            ("Thursday", time(7, 0), time(12, 0)),
+            ("Friday", time(14, 0), time(18, 0)),
+        ],
+        "activities": [
+            ("asesoria", "Thursday", time(8, 30), time(10, 0)),
+        ],
+    },
+    {
+        "teacher_id": "DOC-SW-009",
+        "first_name": "Valentina",
+        "last_name": "Castro",
+        "contract_type": "Catedra",
+        "qualified_codes": ["ISOFBL153", "ISOFBL163", "ISOFBL183", "ISOFBL203", "ISOFBL263"],
+        "availability": [
+            ("Tuesday", time(7, 0), time(12, 0)),
+            ("Thursday", time(7, 0), time(12, 0)),
+            ("Saturday", time(8, 0), time(12, 0)),
+        ],
+        "activities": [],
+    },
+    {
+        "teacher_id": "DOC-SW-010",
+        "first_name": "Felipe",
+        "last_name": "Suarez",
+        "contract_type": "Tiempo Completo",
+        "qualified_codes": ["ISOFBL073", "ISOFBL083", "ISOFBL103", "ISOFBL123", "ISOFBL133"],
+        "availability": [
+            ("Monday", time(7, 0), time(12, 0)),
+            ("Tuesday", time(14, 0), time(18, 0)),
+            ("Wednesday", time(7, 0), time(12, 0)),
+            ("Friday", time(7, 0), time(12, 0)),
+        ],
+        "activities": [
+            ("investigacion", "Wednesday", time(8, 30), time(10, 0)),
+        ],
+    },
+    {
+        "teacher_id": "DOC-SW-011",
+        "first_name": "Liliana",
+        "last_name": "Pardo",
+        "contract_type": "Medio Tiempo",
+        "qualified_codes": ["ISOFBL213", "ISOFBL223", "ISOFBL233", "ISOFBL243"],
+        "availability": [
+            ("Monday", time(14, 0), time(18, 0)),
+            ("Wednesday", time(14, 0), time(18, 0)),
+            ("Friday", time(14, 0), time(18, 0)),
+        ],
+        "activities": [],
+    },
+    {
+        "teacher_id": "DOC-SW-012",
+        "first_name": "Ricardo",
+        "last_name": "Quintero",
+        "contract_type": "Tiempo Completo",
+        "qualified_codes": ["ISOFBL041", "ISOFBL051", "ISOFBL163", "ISOFBL183", "ESTA1061"],
+        "availability": [
+            ("Tuesday", time(7, 0), time(12, 0)),
+            ("Wednesday", time(7, 0), time(12, 0)),
+            ("Thursday", time(14, 0), time(18, 0)),
+            ("Friday", time(7, 0), time(12, 0)),
+        ],
+        "activities": [
+            ("asesoria", "Tuesday", time(10, 0), time(11, 30)),
+        ],
+    },
+    {
+        "teacher_id": "DOC-SW-013",
+        "first_name": "Sandra",
+        "last_name": "Vargas",
+        "contract_type": "Catedra",
+        "qualified_codes": ["CBASBL021", "CBASBL151", "ISOFBL021", "ISOFBL031", "ISOFBL041"],
+        "availability": [
+            ("Tuesday", time(14, 0), time(18, 0)),
+            ("Thursday", time(14, 0), time(18, 0)),
+            ("Saturday", time(8, 0), time(12, 0)),
+        ],
+        "activities": [],
+    },
+    {
+        "teacher_id": "DOC-SW-014",
+        "first_name": "Julian",
+        "last_name": "Mejia",
+        "contract_type": "Tiempo Completo",
+        "qualified_codes": ["ISOFBL023", "ISOFBL033", "ISOFBL043", "ISOFBL053", "ISOFBL263"],
+        "availability": [
+            ("Monday", time(14, 0), time(18, 0)),
+            ("Tuesday", time(7, 0), time(12, 0)),
+            ("Thursday", time(7, 0), time(12, 0)),
+            ("Friday", time(14, 0), time(18, 0)),
+        ],
+        "activities": [
+            ("investigacion", "Monday", time(15, 30), time(17, 0)),
+        ],
+    },
+    {
+        "teacher_id": "DOC-SW-015",
+        "first_name": "Andrea",
+        "last_name": "Lopez",
+        "contract_type": "Tiempo Completo",
+        "qualified_codes": ["ISOFBL133", "ISOFBL153", "ISOFBL203", "ISOFBL223", "ISOFBL243"],
+        "availability": [
+            ("Monday", time(7, 0), time(12, 0)),
+            ("Wednesday", time(7, 0), time(12, 0)),
+            ("Thursday", time(14, 0), time(18, 0)),
+            ("Friday", time(7, 0), time(12, 0)),
+        ],
+        "activities": [
+            ("asesoria", "Thursday", time(14, 0), time(15, 30)),
+        ],
+    },
 ]
 
 DEMAND_PLAN = [
-    ("CBASBL021", 38),
-    ("ISOFBL073", 33),
-    ("ISOFBL153", 26),
-    ("ISOFBL103", 24),
-    ("ISOFBL213", 17),
-    ("ISOFBL023", 15),
-    ("ISOFBL133", 11),
-    ("ESTA1061", 8),
-    ("ISOFBL263", 6),
-    ("ISOFBL203", 4),
+    ("CBASBL021", 72),
+    ("CBASBL151", 48),
+    ("ESTA1061", 41),
+    ("ISOFBL021", 36),
+    ("ISOFBL031", 32),
+    ("ISOFBL041", 28),
+    ("ISOFBL051", 24),
+    ("ISOFBL073", 63),
+    ("ISOFBL083", 44),
+    ("ISOFBL103", 52),
+    ("ISOFBL123", 29),
+    ("ISOFBL133", 27),
+    ("ISOFBL153", 55),
+    ("ISOFBL163", 34),
+    ("ISOFBL183", 22),
+    ("ISOFBL203", 18),
+    ("ISOFBL213", 39),
+    ("ISOFBL223", 26),
+    ("ISOFBL233", 21),
+    ("ISOFBL243", 19),
+    ("ISOFBL023", 31),
+    ("ISOFBL033", 23),
+    ("ISOFBL043", 17),
+    ("ISOFBL053", 14),
+    ("ISOFBL263", 12),
 ]
 
 
@@ -317,9 +491,22 @@ def ensure_classrooms(campus):
 def ensure_teachers(program, faculty, campus, contracts, course_map, term):
     teachers = []
     for spec in TEACHER_DEFINITIONS:
+        teacher_email = f"{spec['teacher_id'].lower()}@uniminuto.edu.co"
+        teacher_user, created = User.objects.get_or_create(
+            email=teacher_email,
+            defaults={
+                "role": "teacher",
+                "is_active": True,
+            },
+        )
+        if created:
+            teacher_user.set_password("Teacher123*")
+            teacher_user.save(update_fields=["password"])
+
         teacher, _ = Teacher.objects.update_or_create(
             teacher_id=spec["teacher_id"],
             defaults={
+                "user": teacher_user,
                 "first_name": spec["first_name"],
                 "last_name": spec["last_name"],
                 "program": program,
@@ -357,6 +544,9 @@ def ensure_teachers(program, faculty, campus, contracts, course_map, term):
 
 def ensure_students_and_demand(course_map, term):
     EnrollmentQueue.objects.filter(term=term).delete()
+    StudentProfile.objects.filter(user__email__startswith="sim.student").delete()
+    sample_course = next(iter(course_map.values()))
+    program = sample_course.study_plan.program
 
     total_students = sum(demand for _, demand in DEMAND_PLAN)
     students = []
@@ -372,6 +562,29 @@ def ensure_students_and_demand(course_map, term):
         if created:
             user.set_password("Student123*")
             user.save(update_fields=["password"])
+        else:
+            changed = []
+            if user.role != "student":
+                user.role = "student"
+                changed.append("role")
+            if not user.is_active:
+                user.is_active = True
+                changed.append("is_active")
+            if changed:
+                user.save(update_fields=changed)
+
+        StudentProfile.objects.update_or_create(
+            user=user,
+            defaults={
+                "student_code": f"SIM{index:04d}",
+                "full_name": f"Estudiante Simulado {index:03d}",
+                "program": program,
+                "faculty": program.faculty,
+                "campus": program.campus,
+                "level": "Pregrado",
+                "jornada": "Diurna",
+            },
+        )
         students.append(user)
 
     offset = 0
@@ -413,6 +626,9 @@ def print_summary(term):
             f"{qualified} materias calificadas"
         )
 
+    print("\nCredenciales de prueba:")
+    print("  - Estudiantes simulados: correo sim.student001@uniminuto.edu.co, clave Student123*")
+    print("  - Docentes simulados: correo doc-sw-001@uniminuto.edu.co, clave Teacher123*")
     print("\nAhora puedes ejecutar el planificador semestral sobre /scheduling/plan-semestral/")
 
 
