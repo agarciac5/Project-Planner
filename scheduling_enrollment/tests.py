@@ -3,10 +3,21 @@ from datetime import date, time
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 
 from academic_core.models import AcademicProgram, AcademicTerm, Campus, Course, Faculty, StudyPlan
+from access_support.models import StudentProfile
 from classrooms.models import Classroom, TimeSlot
-from scheduling_enrollment.models import CourseGroup, Enrollment, EnrollmentQueue, ScheduleSession
+from scheduling_enrollment.models import (
+    CourseGroup,
+    Enrollment,
+    EnrollmentQueue,
+    ProposedSchedule,
+    ScheduleSession,
+    SemesterScheduleAssignment,
+    SemesterScheduleOption,
+    SemesterScheduleRun,
+)
 from scheduling_enrollment.services.enrollment_service import request_student_enrollment
 from scheduling_enrollment.services.scheduling_service import (
     generate_semester_schedule_options,
@@ -202,3 +213,248 @@ class SemesterPlannerServiceTests(TestCase):
         self.assertEqual(summary["waiting_total"], 1)
         self.assertEqual(len(summary["pending_by_student"]), 1)
         self.assertEqual(summary["pending_by_student"][0]["student_email"], "late@test.com")
+
+
+class EnrollmentViewTest(TestCase):
+    def setUp(self):
+        self.campus = Campus.objects.create(name="Principal")
+        self.faculty = Faculty.objects.create(name="Ingenieria", campus=self.campus)
+        self.program = AcademicProgram.objects.create(
+            name="Software",
+            code="SW",
+            faculty=self.faculty,
+            campus=self.campus,
+        )
+        self.study_plan = StudyPlan.objects.create(program=self.program, version="2026")
+        self.course = Course.objects.create(
+            name="Algoritmos",
+            code="SW101",
+            credits=3,
+            semester=1,
+            study_plan=self.study_plan,
+        )
+        self.term = AcademicTerm.objects.create(
+            name="2026-1",
+            start_date=date(2026, 1, 15),
+            end_date=date(2026, 5, 15),
+            active=True,
+        )
+        self.student = get_user_model().objects.create_user(
+            email="student-enrollment@test.com",
+            password="secret123",
+            role="student",
+        )
+        self.student_profile = StudentProfile.objects.create(
+            user=self.student,
+            student_code="EST-000001",
+            full_name="Ana Perez",
+            program=self.program,
+            faculty=self.faculty,
+            campus=self.campus,
+        )
+
+    def test_enrollment_view_creates_waiting_request_for_student(self):
+        self.client.force_login(self.student)
+
+        get_response = self.client.get(reverse("enrollment"))
+        post_response = self.client.post(
+            reverse("enrollment"),
+            {"course_id": self.course.id},
+        )
+
+        self.assertEqual(get_response.status_code, 200)
+        self.assertRedirects(post_response, reverse("enrollment"))
+        self.assertTrue(
+            EnrollmentQueue.objects.filter(
+                student=self.student,
+                course=self.course,
+                term=self.term,
+                status="waiting",
+            ).exists()
+        )
+
+    def test_enrollment_view_does_not_duplicate_existing_request(self):
+        EnrollmentQueue.objects.create(
+            student=self.student,
+            course=self.course,
+            term=self.term,
+            status="waiting",
+        )
+        self.client.force_login(self.student)
+
+        response = self.client.post(
+            reverse("enrollment"),
+            {"course_id": self.course.id},
+        )
+
+        self.assertRedirects(response, reverse("enrollment"))
+        self.assertEqual(
+            EnrollmentQueue.objects.filter(
+                student=self.student,
+                course=self.course,
+                term=self.term,
+            ).count(),
+            1,
+        )
+
+
+class PersonalScheduleViewTest(TestCase):
+    def setUp(self):
+        self.campus = Campus.objects.create(name="Principal")
+        self.faculty = Faculty.objects.create(name="Ingenieria", campus=self.campus)
+        self.program = AcademicProgram.objects.create(
+            name="Software",
+            code="SW",
+            faculty=self.faculty,
+            campus=self.campus,
+        )
+        self.study_plan = StudyPlan.objects.create(program=self.program, version="2026")
+        self.course = Course.objects.create(
+            name="Algoritmos",
+            code="SW101",
+            credits=3,
+            semester=1,
+            study_plan=self.study_plan,
+        )
+        self.term = AcademicTerm.objects.create(
+            name="2026-1",
+            start_date=date(2026, 1, 15),
+            end_date=date(2026, 5, 15),
+            active=True,
+        )
+        self.classroom = Classroom.objects.create(
+            classroom_id="A101",
+            name="Aula 101",
+            block=1,
+            campus=self.campus,
+            capacity=30,
+            classroom_type="SALON",
+            is_active=True,
+        )
+        self.teacher_user = get_user_model().objects.create_user(
+            email="teacher-schedule@test.com",
+            password="secret123",
+            role="teacher",
+        )
+        self.teacher = Teacher.objects.create(
+            user=self.teacher_user,
+            teacher_id="DOC01",
+            first_name="Laura",
+            last_name="Gomez",
+            program=self.program,
+            faculty=self.faculty,
+            campus=self.campus,
+            is_active=True,
+        )
+        self.student = get_user_model().objects.create_user(
+            email="student-schedule@test.com",
+            password="secret123",
+            role="student",
+        )
+        self.student_profile = StudentProfile.objects.create(
+            user=self.student,
+            student_code="EST-000001",
+            full_name="Ana Perez",
+            program=self.program,
+            faculty=self.faculty,
+            campus=self.campus,
+        )
+        self.run = SemesterScheduleRun.objects.create(
+            term=self.term,
+            status="published",
+        )
+        self.option = SemesterScheduleOption.objects.create(
+            run=self.run,
+            rank=1,
+            score=95,
+            is_best=True,
+            selected=True,
+            applied=True,
+        )
+        self.group = CourseGroup.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            term=self.term,
+            nrc="9001",
+            capacity=30,
+        )
+        self.schedule = ProposedSchedule.objects.create(
+            teacher=self.teacher,
+            term=self.term,
+            status="approved",
+            fitness_score=95,
+            rank=1,
+        )
+        ScheduleSession.objects.create(
+            schedule=self.schedule,
+            group=self.group,
+            classroom=self.classroom,
+            day="Monday",
+            start_time=time(7, 0),
+            end_time=time(8, 30),
+        )
+        SemesterScheduleAssignment.objects.create(
+            option=self.option,
+            course=self.course,
+            teacher=self.teacher,
+            classroom=self.classroom,
+            generated_group=self.group,
+            generated_schedule=self.schedule,
+            section_number=1,
+            nrc="9001",
+            day="Monday",
+            start_time=time(7, 0),
+            end_time=time(8, 30),
+            students_assigned=1,
+            capacity=30,
+        )
+        Enrollment.objects.create(
+            student=self.student,
+            course_group=self.group,
+            term=self.term,
+            status="active",
+        )
+
+    def test_my_student_schedule_view_shows_published_enrollments(self):
+        self.client.force_login(self.student)
+
+        response = self.client.get(reverse("my_student_schedule"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SW101")
+        self.assertContains(response, "Algoritmos")
+        self.assertContains(response, "A101")
+
+    def test_my_student_schedule_view_redirects_student_without_profile(self):
+        student_without_profile = get_user_model().objects.create_user(
+            email="student-noprofile@test.com",
+            password="secret123",
+            role="student",
+        )
+        self.client.force_login(student_without_profile)
+
+        response = self.client.get(reverse("my_student_schedule"))
+
+        self.assertRedirects(response, reverse("home"))
+
+    def test_my_teacher_schedule_view_shows_published_groups(self):
+        self.client.force_login(self.teacher_user)
+
+        response = self.client.get(reverse("my_teacher_schedule"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SW101")
+        self.assertContains(response, "student-schedule@test.com")
+        self.assertContains(response, "A101")
+
+    def test_my_teacher_schedule_view_redirects_teacher_without_profile(self):
+        teacher_without_profile = get_user_model().objects.create_user(
+            email="teacher-noprofile@test.com",
+            password="secret123",
+            role="teacher",
+        )
+        self.client.force_login(teacher_without_profile)
+
+        response = self.client.get(reverse("my_teacher_schedule"))
+
+        self.assertRedirects(response, reverse("home"))

@@ -1,3 +1,189 @@
-from django.test import TestCase
+from unittest.mock import patch
 
-# Create your tests here.
+import pandas as pd
+from django.contrib.messages import get_messages
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
+from django.urls import reverse
+
+from access_support.models import StudentProfile, User
+from academic_core.models import AcademicProgram, Campus, Faculty
+
+
+class RegisterViewTest(TestCase):
+    def test_register_creates_user_with_institutional_email(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "email": "ana@uniminuto.edu.co",
+                "password": "ClaveSegura123",
+                "confirm": "ClaveSegura123",
+            },
+        )
+
+        self.assertRedirects(response, reverse("student_profile_setup"))
+        self.assertTrue(User.objects.filter(email="ana@uniminuto.edu.co").exists())
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_register_rejects_email_outside_institutional_domain(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "email": "ana@gmail.com",
+                "password": "ClaveSegura123",
+                "confirm": "ClaveSegura123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="ana@gmail.com").exists())
+        self.assertContains(response, "Solo se permiten correos institucionales")
+
+
+class LoginViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="docente@uniminuto.edu.co",
+            password="ClaveSegura123",
+        )
+
+    def test_login_authenticates_user_with_valid_credentials(self):
+        response = self.client.post(
+            reverse("login"),
+            {
+                "email": "docente@uniminuto.edu.co",
+                "password": "ClaveSegura123",
+            },
+        )
+
+        self.assertRedirects(response, reverse("home"))
+        self.assertEqual(str(self.client.session["_auth_user_id"]), str(self.user.pk))
+
+    def test_login_rejects_invalid_credentials(self):
+        response = self.client.post(
+            reverse("login"),
+            {
+                "email": "docente@uniminuto.edu.co",
+                "password": "incorrecta",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertContains(response, "Credenciales incorrectas")
+
+
+class StudentProfileSetupViewTest(TestCase):
+    def setUp(self):
+        self.campus = Campus.objects.create(name="Sede Principal")
+        self.faculty = Faculty.objects.create(name="Ingenieria", campus=self.campus)
+        self.program = AcademicProgram.objects.create(
+            name="Ingenieria de Software",
+            code="ISW",
+            faculty=self.faculty,
+            campus=self.campus,
+        )
+
+    def test_student_profile_setup_creates_profile_and_generates_student_code(self):
+        user = User.objects.create_user(
+            email="student@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="student",
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("student_profile_setup"),
+            {
+                "full_name": "Ana Perez",
+                "document_type": "CC",
+                "document_number": "123456",
+                "address": "Cra 10",
+                "program": self.program.id,
+                "faculty": "",
+                "campus": "",
+                "level": "Pregrado",
+                "jornada": "Diurna",
+            },
+        )
+
+        self.assertRedirects(response, reverse("profile"))
+        profile = StudentProfile.objects.get(user=user)
+        self.assertEqual(profile.program, self.program)
+        self.assertEqual(profile.faculty, self.faculty)
+        self.assertEqual(profile.campus, self.campus)
+        self.assertRegex(profile.student_code, r"^EST-\d{6}$")
+
+    def test_student_profile_setup_redirects_non_student_users(self):
+        user = User.objects.create_user(
+            email="teacher@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="teacher",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("student_profile_setup"))
+
+        self.assertRedirects(response, reverse("profile"))
+        self.assertFalse(StudentProfile.objects.filter(user=user).exists())
+
+
+class ImportViewTest(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            email="admin@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="admin",
+        )
+        self.client.force_login(self.admin_user)
+
+    @patch("access_support.views.pd.read_excel")
+    def test_import_creates_student_and_related_catalog_records_for_supported_program(
+        self, mock_read_excel
+    ):
+        mock_read_excel.return_value = pd.DataFrame(
+            [
+                {
+                    "CORREO_ESTUDIANTE": "estudiante1@correo.com",
+                    "DESCRIPCION_PROGRAMA": "ingenieria de software",
+                    "DESCRIPCION_SEDE": "Sede Principal",
+                    "DESCRIPCION_FACULTAD": "Facultad de Ingenieria",
+                    "CODIGO": "EST-001",
+                    "TIPO_DOCUMENTO": "CC",
+                    "NUM_DOCUMENTO": "123456",
+                    "NOMBRES": "Ana Perez",
+                    "DESCRIPCION_NIVEL": "Pregrado",
+                    "JORNADA": "Diurna",
+                }
+            ]
+        )
+
+        response = self.client.post(
+            reverse("import"),
+            {
+                "archivo": SimpleUploadedFile(
+                    "estudiantes.xlsx",
+                    b"contenido",
+                    content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(User.objects.filter(email="estudiante1@correo.com").exists())
+        self.assertTrue(StudentProfile.objects.filter(student_code="EST-001").exists())
+        self.assertTrue(Campus.objects.filter(name="Sede Principal").exists())
+        self.assertTrue(Faculty.objects.filter(name="Facultad de Ingenieria").exists())
+        self.assertTrue(
+            AcademicProgram.objects.filter(name="ingenieria de software").exists()
+        )
+
+    def test_import_returns_error_when_file_is_missing(self):
+        response = self.client.post(reverse("import"), {})
+        messages = [message.message for message in get_messages(response.wsgi_request)]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "dashboard/import.html")
+        self.assertIn("No se subio ningun archivo", messages)
+        self.assertEqual(User.objects.filter(role="student").count(), 0)
+        self.assertEqual(StudentProfile.objects.count(), 0)
