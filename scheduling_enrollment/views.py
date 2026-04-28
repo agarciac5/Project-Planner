@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db import models
 from django.contrib.auth.decorators import login_required
+from access_support.role_access import SCHEDULE_MANAGEMENT_ROLES, SCHEDULE_READ_ROLES, roles_required, user_has_any_role
 
 from access_support.models import StudentProfile
 from teaching.models import Teacher
@@ -387,6 +388,7 @@ def _unique_individuals(individuals):
     return unique
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def generate_schedule_view(request):
     teachers = Teacher.objects.filter(is_active=True).order_by("last_name", "first_name")
     terms    = AcademicTerm.objects.order_by("-start_date")
@@ -556,6 +558,7 @@ def generate_schedule_view(request):
     return render(request, "scheduling/generate_schedule.html", context)
 
 
+@roles_required(*SCHEDULE_READ_ROLES)
 def teacher_complete_schedule_view(request):
     teachers = Teacher.objects.filter(is_active=True).order_by("last_name", "first_name")
     selected_teacher_id = request.GET.get("teacher_id")
@@ -592,6 +595,7 @@ def teacher_complete_schedule_view(request):
     )
 
 
+@roles_required(*SCHEDULE_READ_ROLES)
 def student_complete_schedule_view(request):
     students = (
         StudentProfile.objects.select_related("user")
@@ -795,6 +799,7 @@ def my_teacher_schedule_view(request):
 # ---------------------------------------------------------------------------
 # NUEVO ALGORITMO (STUDENTS) - SIN ROMPER EL VIEJO
 # ---------------------------------------------------------------------------
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def generate_schedule_view_students(request):
     teachers = Teacher.objects.filter(is_active=True).order_by("last_name", "first_name")
     terms    = AcademicTerm.objects.order_by("-start_date")
@@ -889,6 +894,7 @@ def generate_schedule_view_students(request):
 # ---------------------------------------------------------------------------
 # Lista y detalle
 # ---------------------------------------------------------------------------
+@roles_required(*SCHEDULE_READ_ROLES)
 def schedule_list_view(request):
     schedules = ProposedSchedule.objects.select_related(
         "teacher", "term"
@@ -897,6 +903,7 @@ def schedule_list_view(request):
     return render(request, "scheduling/schedule_list.html", {"schedules": schedules})
 
 
+@roles_required(*SCHEDULE_READ_ROLES)
 def schedule_detail_view(request, schedule_id):
     schedule = get_object_or_404(
         ProposedSchedule.objects.select_related("teacher", "term"),
@@ -920,6 +927,9 @@ def schedule_detail_view(request, schedule_id):
     ]
 
     if request.method == "POST":
+        if not user_has_any_role(request.user, SCHEDULE_MANAGEMENT_ROLES):
+            messages.warning(request, "No tienes permisos para aprobar o rechazar horarios.")
+            return redirect("schedule_detail", schedule_id=schedule.id)
         action = request.POST.get("action")
 
         if action == "approve":
@@ -940,6 +950,7 @@ def schedule_detail_view(request, schedule_id):
     })
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def semester_planner_view(request):
     terms = AcademicTerm.objects.order_by("-start_date")
     context = {
@@ -982,6 +993,7 @@ def semester_planner_view(request):
     return render(request, "scheduling/semester_planner.html", context)
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def save_semester_run_view(request, run_id):
     run = get_object_or_404(SemesterScheduleRun, id=run_id)
     if request.method == "POST" and run.status == "draft":
@@ -991,6 +1003,7 @@ def save_semester_run_view(request, run_id):
     return redirect("saved_semester_run_detail", run_id=run.id)
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def select_semester_option_view(request, option_id):
     option = get_object_or_404(
         SemesterScheduleOption.objects.select_related("run"),
@@ -1007,6 +1020,7 @@ def select_semester_option_view(request, option_id):
     return redirect("saved_semester_run_detail", run_id=option.run.id)
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def deselect_semester_option_view(request, option_id):
     option = get_object_or_404(
         SemesterScheduleOption.objects.select_related("run"),
@@ -1022,6 +1036,7 @@ def deselect_semester_option_view(request, option_id):
     return redirect("saved_semester_run_detail", run_id=option.run.id)
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def apply_semester_option_view(request, option_id):
     option = get_object_or_404(
         SemesterScheduleOption.objects.select_related("run"),
@@ -1043,6 +1058,7 @@ def apply_semester_option_view(request, option_id):
     return redirect("saved_semester_run_detail", run_id=option.run.id)
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def revert_semester_option_view(request, option_id):
     option = get_object_or_404(
         SemesterScheduleOption.objects.select_related("run"),
@@ -1054,6 +1070,7 @@ def revert_semester_option_view(request, option_id):
     return redirect("saved_semester_run_detail", run_id=option.run.id)
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def publish_semester_run_view(request, run_id):
     run = get_object_or_404(SemesterScheduleRun, id=run_id)
     if request.method == "POST":
@@ -1065,6 +1082,7 @@ def publish_semester_run_view(request, run_id):
     return redirect("saved_semester_run_detail", run_id=run.id)
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def delete_semester_run_view(request, run_id):
     run = get_object_or_404(SemesterScheduleRun, id=run_id)
     if request.method == "POST":
@@ -1076,6 +1094,7 @@ def delete_semester_run_view(request, run_id):
     return redirect("saved_semester_runs")
 
 
+@roles_required(*SCHEDULE_READ_ROLES)
 def saved_semester_runs_view(request):
     runs = list(
         SemesterScheduleRun.objects.filter(status__in=["saved", "ready_to_publish", "published"])
@@ -1092,6 +1111,7 @@ def saved_semester_runs_view(request):
     )
 
 
+@roles_required(*SCHEDULE_READ_ROLES)
 def saved_semester_run_detail_view(request, run_id):
     run = get_object_or_404(
         SemesterScheduleRun.objects.select_related("term"),

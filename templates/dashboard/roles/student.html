@@ -1,0 +1,53 @@
+{% extends 'base/base.html' %}
+{% block title %}Inicio estudiante | UNIMINUTO Planner{% endblock %}
+{% block content %}
+<section class="hero card soft-gradient">
+    <div>
+        <p class="eyebrow">Vista de estudiante</p>
+        <h2>Hola, {{ student_profile.full_name|default:user_name }}</h2>
+        <p>Desde aquí puedes consultar tu horario, solicitar materias y completar tu perfil académico.</p>
+    </div>
+    <div class="hero-badges">
+        <span>{{ current_role_label }}</span>
+        {% if active_term %}<span>{{ active_term.name }}</span>{% endif %}
+    </div>
+</section>
+
+<section class="stats-grid">
+    {% for stat in stats %}
+    <article class="card stat-card">
+        <h3>{{ stat.value }}</h3>
+        <p>{{ stat.label }}</p>
+        {% if stat.helper %}<small>{{ stat.helper }}</small>{% endif %}
+    </article>
+    {% endfor %}
+</section>
+
+<section class="section-heading">
+    <h2>Acciones disponibles</h2>
+    <p>Solo se muestran módulos útiles para el estudiante.</p>
+</section>
+
+<section class="card-grid">
+    <a class="feature-card" href="{% url 'enrollment' %}">
+        <div class="feature-icon">📝</div>
+        <h3>Matrícula</h3>
+        <p>Solicita materias disponibles para el periodo activo.</p>
+    </a>
+    <a class="feature-card" href="{% url 'my_student_schedule' %}">
+        <div class="feature-icon">📅</div>
+        <h3>Mi horario</h3>
+        <p>Consulta las clases publicadas y asignadas a tu usuario.</p>
+    </a>
+    <a class="feature-card" href="{% url 'study_plan' %}">
+        <div class="feature-icon">🧭</div>
+        <h3>Plan de estudios</h3>
+        <p>Revisa materias por programa y semestre.</p>
+    </a>
+    <a class="feature-card" href="{% url 'student_profile_setup' %}">
+        <div class="feature-icon">👤</div>
+        <h3>Perfil estudiantil</h3>
+        <p>Completa o actualiza tu información académica.</p>
+    </a>
+</section>
+{% endblock %}

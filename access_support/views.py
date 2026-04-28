@@ -1,284 +1,127 @@
-from multiprocessing import context
-
-from django.shortcuts import render, redirect
-from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
-from .login import EmailLoginForm
-
-
-from academic_core.services.academic_services import get_programs, get_faculties, get_campuses, get_study_plans
-
-import pandas as pd
 import random
 import string
+
+import pandas as pd
 from django.contrib import messages
-from .models import User, StudentProfile
-from academic_core.models import Campus, Faculty, AcademicProgram
-from django.contrib.auth import logout
+from django.contrib.auth import login, logout
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+
+from academic_core.models import AcademicProgram, AcademicTerm, Campus, Course, Faculty, StudyPlan
+from academic_core.services.academic_services import get_programs
+from classrooms.models import Classroom
+from scheduling_enrollment.models import Enrollment, EnrollmentQueue, SemesterScheduleRun
+from teaching.models import Teacher
+
 from .forms import StudentSelfProfileForm
-
-
-
-
-SUBJECT_OPTIONS = [
-    {
-        "id": "MAT-001",
-        "materia": "Cálculo Diferencial",
-        "codigo": "MAT101",
-        "grupo": "03",
-        "aula": "A-305",
-        "dia": "Viernes",
-        "inicio": "8:00 am",
-        "fin": "10:00 am",
-        "docente": "Laura González",
-        "programa": "Ingeniería de Software",
-        "descripcion": "Derivadas y límites",
-    },
-    {
-        "id": "MAT-002",
-        "materia": "Telemática",
-        "codigo": "TEL401",
-        "grupo": "01",
-        "aula": "B-204",
-        "dia": "Lunes",
-        "inicio": "10:30 am",
-        "fin": "12:00 pm",
-        "docente": "Andrés Pérez",
-        "programa": "Ingeniería de Redes",
-        "descripcion": "Redes básicas",
-    },
-    {
-        "id": "MAT-003",
-        "materia": "Programación Web",
-        "codigo": "PRG220",
-        "grupo": "02",
-        "aula": "C-110",
-        "dia": "Jueves",
-        "inicio": "8:30 am",
-        "fin": "10:30 am",
-        "docente": "Diana Rojas",
-        "programa": "Ingeniería de Software",
-        "descripcion": "Frontend y backend",
-    },
-    {
-        "id": "MAT-004",
-        "materia": "Bases de Datos",
-        "codigo": "BD201",
-        "grupo": "05",
-        "aula": "B-104",
-        "dia": "Martes",
-        "inicio": "9:00 am",
-        "fin": "11:00 am",
-        "docente": "Sergio Díaz",
-        "programa": "Análisis de Datos",
-        "descripcion": "Modelado y SQL",
-    },
-]
-
-TEACHERS = [
-    {
-        "nombre": "Laura González",
-        "cedula": "1.001.223.456",
-        "codigo_profesor": "DOC-001",
-        "direccion": "Cra. 52 #45-10",
-        "nivel_ingles": "B2",
-        "programa": "Ingeniería de Software",
-        "facultad": "Facultad de Ingeniería",
-        "sede": "Sede Principal",
-        "materia": "Cálculo Diferencial",
-        "codigo_materia": "MAT101",
-    },
-    {
-        "nombre": "Andrés Pérez",
-        "cedula": "80.456.123",
-        "codigo_profesor": "DOC-002",
-        "direccion": "Cl. 12 #30-18",
-        "nivel_ingles": "B1",
-        "programa": "Ingeniería de Redes",
-        "facultad": "Facultad de Ingeniería",
-        "sede": "Sede Norte",
-        "materia": "Telemática",
-        "codigo_materia": "TEL401",
-    },
-    {
-        "nombre": "Diana Rojas",
-        "cedula": "52.778.901",
-        "codigo_profesor": "DOC-003",
-        "direccion": "Av. 80 #65-12",
-        "nivel_ingles": "C1",
-        "programa": "Ingeniería de Software",
-        "facultad": "Facultad de Ingeniería",
-        "sede": "Sede Principal",
-        "materia": "Programación Web",
-        "codigo_materia": "PRG220",
-    },
-    {
-        "nombre": "Sergio Díaz",
-        "cedula": "71.009.335",
-        "codigo_profesor": "DOC-004",
-        "direccion": "Cra. 70 #44-01",
-        "nivel_ingles": "B2",
-        "programa": "Análisis de Datos",
-        "facultad": "Facultad de Ciencias Empresariales",
-        "sede": "Sede Sur",
-        "materia": "Bases de Datos",
-        "codigo_materia": "BD201",
-    },
-]
-
-STUDENTS = [
-    {
-        "nombre": "Camila Torres",
-        "cedula": "1.011.445.900",
-        "codigo_estudiante": "EST-202401",
-        "direccion": "Cra. 43 #21-18",
-        "facultad": "Facultad de Ingeniería",
-        "sede": "Sede Principal",
-    },
-    {
-        "nombre": "Juan David Restrepo",
-        "cedula": "1.020.334.667",
-        "codigo_estudiante": "EST-202402",
-        "direccion": "Cl. 54 #80-11",
-        "facultad": "Facultad de Educación",
-        "sede": "Sede Norte",
-    },
-    {
-        "nombre": "Mariana López",
-        "cedula": "1.033.778.991",
-        "codigo_estudiante": "EST-202403",
-        "direccion": "Av. 33 #65-72",
-        "facultad": "Facultad de Ciencias Empresariales",
-        "sede": "Sede Sur",
-    },
-]
-
-CAMPUSES = [
-    {"id": "SED-01", "nombre": "Sede Principal"},
-    {"id": "SED-02", "nombre": "Sede Norte"},
-    {"id": "SED-03", "nombre": "Sede Sur"},
-]
-
-FACULTIES = [
-    {"id": "FAC-01", "nombre": "Facultad de Ingeniería"},
-    {"id": "FAC-02", "nombre": "Facultad de Educación"},
-    {"id": "FAC-03", "nombre": "Facultad de Ciencias Empresariales"},
-]
-
-PROGRAMS = [
-    {"id": "PRO-01", "nombre": "Ingeniería de Software"},
-    {"id": "PRO-02", "nombre": "Ingeniería de Redes"},
-    {"id": "PRO-03", "nombre": "Análisis de Datos"},
-]
-
-STUDY_PLANS = [
-    {
-        "programa": "Ingeniería de Software",
-        "semestres": [
-            {
-                "numero": 1,
-                "materias": [
-                    "Cálculo Diferencial",
-                    "Introducción a la Programación",
-                    "Competencias Comunicativas",
-                ],
-            },
-            {
-                "numero": 2,
-                "materias": [
-                    "Álgebra Lineal",
-                    "Programación Orientada a Objetos",
-                    "Inglés I",
-                ],
-            },
-            {
-                "numero": 3,
-                "materias": ["Bases de Datos", "Estructuras de Datos", "Inglés II"],
-            },
-            {
-                "numero": 4,
-                "materias": [
-                    "Programación Web",
-                    "Arquitectura de Software",
-                    "Investigación I",
-                ],
-            },
-        ],
-    },
-    {
-        "programa": "Ingeniería de Redes",
-        "semestres": [
-            {
-                "numero": 1,
-                "materias": ["Lógica", "Electrónica Básica", "Competencias Digitales"],
-            },
-            {
-                "numero": 2,
-                "materias": ["Telemática", "Fundamentos de Redes", "Inglés I"],
-            },
-            {
-                "numero": 3,
-                "materias": [
-                    "Protocolos de Comunicación",
-                    "Seguridad Informática",
-                    "Inglés II",
-                ],
-            },
-        ],
-    },
-    {
-        "programa": "Análisis de Datos",
-        "semestres": [
-            {
-                "numero": 1,
-                "materias": [
-                    "Matemática Básica",
-                    "Herramientas Ofimáticas",
-                    "Comunicación Escrita",
-                ],
-            },
-            {
-                "numero": 2,
-                "materias": ["Estadística", "Bases de Datos", "Visualización de Datos"],
-            },
-            {
-                "numero": 3,
-                "materias": [
-                    "Minería de Datos",
-                    "Machine Learning",
-                    "Analítica de Negocio",
-                ],
-            },
-        ],
-    },
-]
-
-CLASSROOMS = [
-    ("A", "201", "Aula estándar (30 puestos)", "6:00 am", "10:00 pm"),
-    ("A", "305", "Aula con proyector", "7:00 am", "9:00 pm"),
-    ("B", "104", "Laboratorio de sistemas", "6:30 am", "8:00 pm"),
-    ("C", "110", "Sala de innovación", "8:00 am", "6:00 pm"),
-]
+from .login import EmailLoginForm
+from .models import StudentProfile, User
+from .role_access import (
+    ACADEMIC_MANAGEMENT_ROLES,
+    SCHEDULE_MANAGEMENT_ROLES,
+    SCHEDULE_READ_ROLES,
+    normalize_role,
+    role_dashboard_template,
+    role_label,
+    roles_required,
+)
 
 
 def _base_context(request):
     user_name = request.user.email if request.user.is_authenticated else "Invitado"
     return {
         "user_name": user_name,
-        "subject_options": SUBJECT_OPTIONS,
-        "teachers": TEACHERS,
-        "students": STUDENTS,
-        "campuses": CAMPUSES,
-        "faculties": FACULTIES,
-        "programs": PROGRAMS,
-        "study_plans": STUDY_PLANS,
-        "classrooms": CLASSROOMS,
+        "role_label": role_label(request.user),
     }
 
 
-def dashboard(request):
+def _dashboard_card(label, value, helper=""):
+    return {"label": label, "value": value, "helper": helper}
+
+
+def _role_dashboard_context(request):
+    """Contexto separado para cada rol. Mantiene el home limpio y sin condicionales gigantes."""
+    user = request.user
+    role = normalize_role(user)
     context = _base_context(request)
-    return render(request, "dashboard/dashboard.html", context)
+    active_term = AcademicTerm.objects.filter(active=True).order_by("-start_date").first()
+    context["active_term"] = active_term
+
+    if role == "student":
+        student_profile = (
+            StudentProfile.objects.select_related("program", "faculty", "campus")
+            .filter(user=user)
+            .first()
+        )
+        waiting_count = 0
+        enrolled_count = 0
+        if active_term:
+            waiting_count = EnrollmentQueue.objects.filter(
+                student=user, term=active_term, status="waiting"
+            ).count()
+            enrolled_count = Enrollment.objects.filter(
+                student=user, term=active_term, status="active"
+            ).count()
+        context.update(
+            {
+                "student_profile": student_profile,
+                "stats": [
+                    _dashboard_card("Materias activas", enrolled_count, "Cursos asignados al periodo"),
+                    _dashboard_card("Solicitudes en espera", waiting_count, "Materias pendientes por grupo"),
+                    _dashboard_card("Programa", student_profile.program if student_profile and student_profile.program else "Sin definir"),
+                ],
+            }
+        )
+        return context
+
+    if role == "teacher":
+        teacher = getattr(user, "teacher_profile", None)
+        assigned_groups = 0
+        if teacher and active_term:
+            assigned_groups = teacher.coursegroup_set.filter(term=active_term).count()
+        context.update(
+            {
+                "teacher": teacher,
+                "stats": [
+                    _dashboard_card("Grupos asignados", assigned_groups, "Para el periodo activo"),
+                    _dashboard_card("Disponibilidades", teacher.availabilities.count() if teacher else 0, "Bloques registrados"),
+                    _dashboard_card("Rol", "Docente", "Vista limitada a horario y datos propios"),
+                ],
+            }
+        )
+        return context
+
+    if role == "admin":
+        context.update(
+            {
+                "stats": [
+                    _dashboard_card("Estudiantes", StudentProfile.objects.count(), "Perfiles registrados"),
+                    _dashboard_card("Docentes", Teacher.objects.count(), "Docentes activos y registrados"),
+                    _dashboard_card("Materias", Course.objects.count(), "Catalogo academico"),
+                    _dashboard_card("Aulas", Classroom.objects.count(), "Recursos fisicos"),
+                ]
+            }
+        )
+        return context
+
+    # coordinator/director y superusuario funcional
+    context.update(
+        {
+            "stats": [
+                _dashboard_card("Planes semestrales", SemesterScheduleRun.objects.count(), "Generados o guardados"),
+                _dashboard_card("Periodos", AcademicTerm.objects.count(), "Periodos academicos"),
+                _dashboard_card("Programas", AcademicProgram.objects.count(), "Programas configurados"),
+                _dashboard_card("Docentes", Teacher.objects.count(), "Recursos docentes"),
+            ]
+        }
+    )
+    return context
+
+
+@login_required
+def dashboard(request):
+    context = _role_dashboard_context(request)
+    return render(request, role_dashboard_template(request.user), context)
 
 
 def login_view(request):
@@ -297,26 +140,40 @@ def login_view(request):
     return render(request, "access_support/login.html", {"form": form})
 
 
+@login_required
 def calendar_view(request):
+    schedule_rows = [
+        ("07:00 - 08:30", "", "", "", "", ""),
+        ("08:30 - 10:00", "", "", "", "", ""),
+        ("10:00 - 11:30", "", "", "", "", ""),
+        ("11:30 - 13:00", "", "", "", "", ""),
+        ("14:30 - 16:00", "", "", "", "", ""),
+        ("16:00 - 17:30", "", "", "", "", ""),
+        ("18:00 - 19:30", "", "", "", "", ""),
+        ("19:30 - 21:00", "", "", "", "", ""),
+    ]
     context = _base_context(request)
+    context["schedule_rows"] = schedule_rows
     return render(request, "scheduling/schedule.html", context)
 
 
+@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
 def add_calendar_view(request):
     return redirect("generate_schedule")
 
 
+@roles_required(*ACADEMIC_MANAGEMENT_ROLES)
 def students_view(request):
     context = _base_context(request)
-    context["items"] = StudentProfile.objects.all().order_by("id")
+    context["items"] = StudentProfile.objects.select_related("user", "faculty", "campus", "program").order_by("id")
     return render(request, "dashboard/students.html", context)
 
 
+@roles_required(*ACADEMIC_MANAGEMENT_ROLES)
 def programs_view(request):
     context = _base_context(request)
     context["items"] = get_programs()
     return render(request, "dashboard/programs.html", context)
-
 
 
 def generar_password(longitud=10):
@@ -335,12 +192,11 @@ def generar_codigo_estudiantil():
 
     max_number = 0
     for code in ultimo:
-        if not code:
+        if not code or not code.startswith(base):
             continue
-        if code.startswith(base):
-            suffix = code.replace(base, "", 1)
-            if suffix.isdigit():
-                max_number = max(max_number, int(suffix))
+        suffix = code.replace(base, "", 1)
+        if suffix.isdigit():
+            max_number = max(max_number, int(suffix))
 
     next_number = max_number + 1
     while True:
@@ -350,6 +206,7 @@ def generar_codigo_estudiantil():
         next_number += 1
 
 
+@roles_required(*ACADEMIC_MANAGEMENT_ROLES)
 def import_view(request):
     context = _base_context(request)
 
@@ -357,7 +214,7 @@ def import_view(request):
         archivo = request.FILES.get("archivo")
 
         if not archivo:
-            messages.error(request, "No se subió ningún archivo")
+            messages.error(request, "No se subio ningun archivo")
             return render(request, "dashboard/import.html", context)
 
         try:
@@ -367,57 +224,41 @@ def import_view(request):
             messages.error(request, "Error al leer el archivo Excel")
             return render(request, "dashboard/import.html", context)
 
-        emails_procesados = set()
         resultados = []
 
         for _, row in df.iterrows():
-            email = str(row.get("CORREO_ESTUDIANTE", "")).strip().lower()
-
-            if not email or email == "nan":
+            email = str(row.get("CORREO_ESTUDIANTE", "")).strip().lower().replace(" ", "")
+            if not email or email == "nan" or User.objects.filter(email=email).exists():
                 continue
 
-            email = email.replace(" ", "")
             program_name = str(row.get("DESCRIPCION_PROGRAMA", "")).strip().lower()
-
             if program_name not in [
-                "ingeniería industrial",
                 "ingenieria industrial",
-                "ingeniería de software",
+                "ingeniería industrial",
                 "ingenieria de software",
+                "ingeniería de software",
             ]:
                 continue
 
-            if User.objects.filter(email=email).exists():
-                continue
             try:
                 password = generar_password()
+                user = User.objects.create_user(email=email, password=password, role="student")
 
-                user, created = User.objects.get_or_create(
-                    email=email, defaults={"role": "student"}
-                )
-
-                if created:
-                    user.set_password(password)
-                    user.save()
-                else:
-                    continue
                 campus, _ = Campus.objects.get_or_create(
-                    name=str(row.get("DESCRIPCION_SEDE", "")).strip()
+                    name=str(row.get("DESCRIPCION_SEDE", "")).strip() or "Sede sin definir"
                 )
-
                 faculty, _ = Faculty.objects.get_or_create(
-                    name=str(row.get("DESCRIPCION_FACULTAD", "")).strip(),
+                    name=str(row.get("DESCRIPCION_FACULTAD", "")).strip() or "Facultad sin definir",
                     defaults={"campus": campus},
                 )
-
                 program, _ = AcademicProgram.objects.get_or_create(
-                    name=str(row.get("DESCRIPCION_PROGRAMA", "")).strip(),
+                    name=str(row.get("DESCRIPCION_PROGRAMA", "")).strip() or "Programa sin definir",
                     defaults={"faculty": faculty, "campus": campus},
                 )
 
                 StudentProfile.objects.create(
                     user=user,
-                    student_code=str(row.get("CODIGO", "")),
+                    student_code=str(row.get("CODIGO", "")) or generar_codigo_estudiantil(),
                     document_type=str(row.get("TIPO_DOCUMENTO", "")),
                     document_number=str(row.get("NUM_DOCUMENTO", "")),
                     full_name=str(row.get("NOMBRES", "")),
@@ -428,16 +269,12 @@ def import_view(request):
                     jornada=str(row.get("JORNADA", "")),
                     address="",
                 )
-
                 resultados.append({"email": email, "password": password})
-
-                emails_procesados.add(email)
-
-            except Exception:
-                continue
+            except Exception as exc:
+                resultados.append({"email": email, "password": f"Error: {exc}"})
 
         context["resultados"] = resultados
-        context["success_message"] = f"Se crearon {len(resultados)} usuarios"
+        context["success_message"] = f"Se procesaron {len(resultados)} usuarios"
 
     return render(request, "dashboard/import.html", context)
 
@@ -446,13 +283,19 @@ def import_view(request):
 def profile_view(request):
     context = _base_context(request)
     student_profile = None
+    teacher = None
+
     if request.user.role == "student":
         student_profile = (
             StudentProfile.objects.select_related("program", "faculty", "campus")
             .filter(user=request.user)
             .first()
         )
+    elif request.user.role == "teacher":
+        teacher = getattr(request.user, "teacher_profile", None)
+
     context["student_profile"] = student_profile
+    context["teacher"] = teacher
     return render(request, "dashboard/profile.html", context)
 
 
@@ -473,12 +316,10 @@ def student_profile_setup_view(request):
             profile.user = request.user
             if not profile.student_code:
                 profile.student_code = generar_codigo_estudiantil()
-
             if profile.program and not profile.faculty:
                 profile.faculty = profile.program.faculty
             if profile.program and not profile.campus:
                 profile.campus = profile.program.campus
-
             profile.save()
             messages.success(request, "Tu perfil estudiantil fue guardado correctamente.")
             return redirect("profile")
@@ -496,49 +337,37 @@ def student_profile_setup_view(request):
     )
 
 
+@login_required
 def settings_view(request):
     context = _base_context(request)
     return render(request, "dashboard/settings.html", context)
 
 
 def register_view(request):
-
     if request.user.is_authenticated:
         return redirect("home")
 
     if request.method == "POST":
-        email = request.POST.get("email")
+        email = request.POST.get("email", "").strip().lower()
         password = request.POST.get("password")
         confirm = request.POST.get("confirm")
 
-        # Validación
         if not email.endswith("@uniminuto.edu.co"):
-            messages.error(
-                request, "Solo se permiten correos institucionales (@uniminuto.edu.co)"
-            )
+            messages.error(request, "Solo se permiten correos institucionales (@uniminuto.edu.co)")
             return render(request, "access_support/register.html")
 
         if password != confirm:
-            messages.error(request, "Las contraseñas no coinciden")
+            messages.error(request, "Las contrasenas no coinciden")
             return redirect("register")
 
         if User.objects.filter(email=email).exists():
-            messages.error(request, "El correo ya está registrado")
+            messages.error(request, "El correo ya esta registrado")
             return redirect("register")
 
-        try:
-            # Crear usuario
-            user = User.objects.create_user(
-                email=email, password=password, role="student"  # por defecto
-            )
-
-            login(request, user)
-            messages.success(request, "Usuario creado correctamente. Ahora completa tu perfil estudiantil.")
-            return redirect("student_profile_setup")
-
-        except Exception:
-            messages.error(request, "Error al crear el usuario")
-            return redirect("register")
+        user = User.objects.create_user(email=email, password=password, role="student")
+        login(request, user)
+        messages.success(request, "Usuario creado correctamente. Ahora completa tu perfil estudiantil.")
+        return redirect("student_profile_setup")
 
     return render(request, "access_support/register.html")
 

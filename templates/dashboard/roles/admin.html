@@ -1,0 +1,41 @@
+{% extends 'base/base.html' %}
+{% block title %}Inicio administrador | UNIMINUTO Planner{% endblock %}
+{% block content %}
+<section class="hero card soft-gradient">
+    <div>
+        <p class="eyebrow">Vista administrativa</p>
+        <h2>Hola, {{ user_name }}</h2>
+        <p>Gestiona información académica base: estudiantes, docentes, programas, materias, sedes y aulas.</p>
+    </div>
+    <div class="hero-badges">
+        <span>{{ current_role_label }}</span>
+        {% if active_term %}<span>{{ active_term.name }}</span>{% endif %}
+    </div>
+</section>
+
+<section class="stats-grid">
+    {% for stat in stats %}
+    <article class="card stat-card">
+        <h3>{{ stat.value }}</h3>
+        <p>{{ stat.label }}</p>
+        {% if stat.helper %}<small>{{ stat.helper }}</small>{% endif %}
+    </article>
+    {% endfor %}
+</section>
+
+<section class="section-heading">
+    <h2>Módulos administrativos</h2>
+    <p>El administrador puede mantener datos y consultar horarios publicados o guardados.</p>
+</section>
+
+<section class="card-grid">
+    <a class="feature-card" href="{% url 'subjects' %}"><div class="feature-icon">📘</div><h3>Materias</h3><p>Crear, editar y consultar materias.</p></a>
+    <a class="feature-card" href="{% url 'teacher_list' %}"><div class="feature-icon">👩‍🏫</div><h3>Docentes</h3><p>Gestionar docentes y disponibilidad.</p></a>
+    <a class="feature-card" href="{% url 'students' %}"><div class="feature-icon">🎓</div><h3>Estudiantes</h3><p>Consultar y administrar perfiles estudiantiles.</p></a>
+    <a class="feature-card" href="{% url 'programs' %}"><div class="feature-icon">🗂️</div><h3>Programas</h3><p>Gestionar programas académicos.</p></a>
+    <a class="feature-card" href="{% url 'classrooms' %}"><div class="feature-icon">🏫</div><h3>Aulas</h3><p>Consultar recursos físicos.</p></a>
+    <a class="feature-card" href="{% url 'import' %}"><div class="feature-icon">📥</div><h3>Importar</h3><p>Cargar estudiantes desde Excel.</p></a>
+    <a class="feature-card" href="{% url 'teacher_complete_schedule' %}"><div class="feature-icon">📅</div><h3>Horario docente</h3><p>Consultar horarios de docentes.</p></a>
+    <a class="feature-card" href="{% url 'student_complete_schedule' %}"><div class="feature-icon">🧾</div><h3>Horario estudiantil</h3><p>Consultar horarios de estudiantes.</p></a>
+</section>
+{% endblock %}

@@ -34,7 +34,7 @@ class User(AbstractUser):
         ("student", "Estudiante"),
         ("teacher", "Docente"),
         ("admin", "Administrador"),
-        ("coordinator", "Coordinador"),
+        ("coordinator", "Director academico"),
     )
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="student")
