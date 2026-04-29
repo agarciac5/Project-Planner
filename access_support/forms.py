@@ -90,16 +90,27 @@ class StudentForm(forms.ModelForm):
             "level",
             "jornada",
         ]
+        labels = {
+            "level": "Pregrado",
+        }
 
 
 class StudentSelfProfileForm(forms.ModelForm):
+    class Meta:
+        model = StudentProfile
+        fields = ["address"]
+        labels = {
+            "address": "Direccion",
+        }
+
+
+class StudentSelfReadonlyForm(forms.ModelForm):
     class Meta:
         model = StudentProfile
         fields = [
             "full_name",
             "document_type",
             "document_number",
-            "address",
             "program",
             "faculty",
             "campus",
@@ -114,6 +125,6 @@ class StudentSelfProfileForm(forms.ModelForm):
             "program": "Programa",
             "faculty": "Facultad",
             "campus": "Sede",
-            "level": "Nivel",
+            "level": "Pregrado",
             "jornada": "Jornada",
         }

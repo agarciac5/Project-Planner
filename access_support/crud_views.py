@@ -1,10 +1,14 @@
+from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.contrib import messages
+from django.db import transaction
+from django.utils.crypto import get_random_string
 
 from academic_core.models import Campus, Faculty, AcademicProgram, Course, StudyPlan
 from teaching.models import Teacher
 from classrooms.models import Classroom
-from .models import StudentProfile
+from .models import StudentProfile, User
 from .role_access import AcademicManagementRequiredMixin
 from .forms import (
     CampusForm,
@@ -158,6 +162,43 @@ class StudentCreateView(AcademicManagementRequiredMixin, CreateView):
     form_class = StudentForm
     template_name = "crud/form.html"
     success_url = reverse_lazy("student_list")
+
+    def form_valid(self, form):
+        profile_preview = form.save(commit=False)
+        email_base = (
+            profile_preview.document_number
+            or profile_preview.student_code
+            or get_random_string(8)
+        )
+        email_base = str(email_base).strip().lower().replace(" ", "")
+        if not email_base:
+            email_base = get_random_string(8).lower()
+        email = f"student.{email_base}@autogen.local"
+        suffix = 1
+        while User.objects.filter(email=email).exists():
+            suffix += 1
+            email = f"student.{email_base}.{suffix}@autogen.local"
+        raw_password = get_random_string(12)
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=email,
+                password=raw_password,
+                role="student",
+            )
+            self.object = form.save(commit=False)
+            self.object.user = user
+            if self.object.program and not self.object.faculty:
+                self.object.faculty = self.object.program.faculty
+            if self.object.program and not self.object.campus:
+                self.object.campus = self.object.program.campus
+            self.object.save()
+
+        messages.success(
+            self.request,
+            f"Estudiante creado correctamente. Usuario interno: {email}",
+        )
+        return HttpResponseRedirect(self.get_success_url())
 
 
 class StudentUpdateView(AcademicManagementRequiredMixin, UpdateView):

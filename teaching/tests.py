@@ -59,3 +59,27 @@ class TeacherViewTest(TestCase):
 
         self.assertRedirects(response, reverse("teacher_list"))
         self.assertFalse(Availability.objects.filter(teacher=teacher).exists())
+
+    def test_teacher_edit_updates_teacher_fields(self):
+        teacher = Teacher.objects.create(
+            teacher_id="DOC-003",
+            first_name="Ana",
+            last_name="Perez",
+            address="Direccion antigua",
+        )
+
+        response = self.client.post(
+            reverse("teacher_edit", args=[teacher.id]),
+            {
+                "teacher_id": "DOC-003",
+                "first_name": "Ana Maria",
+                "last_name": "Perez",
+                "address": "Direccion nueva",
+                "is_active": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("teacher_list"))
+        teacher.refresh_from_db()
+        self.assertEqual(teacher.first_name, "Ana Maria")
+        self.assertEqual(teacher.address, "Direccion nueva")

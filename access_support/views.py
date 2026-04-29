@@ -1,5 +1,6 @@
 import random
 import string
+import unicodedata
 
 import pandas as pd
 from django.contrib import messages
@@ -13,7 +14,7 @@ from classrooms.models import Classroom
 from scheduling_enrollment.models import Enrollment, EnrollmentQueue, SemesterScheduleRun
 from teaching.models import Teacher
 
-from .forms import StudentSelfProfileForm
+from .forms import StudentSelfProfileForm, StudentSelfReadonlyForm
 from .login import EmailLoginForm
 from .models import StudentProfile, User
 from .role_access import (
@@ -224,37 +225,70 @@ def import_view(request):
             messages.error(request, "Error al leer el archivo Excel")
             return render(request, "dashboard/import.html", context)
 
+        def normalize_text(value):
+            text = str(value or "").strip().lower()
+            text = unicodedata.normalize("NFKD", text)
+            text = "".join(char for char in text if not unicodedata.combining(char))
+            return " ".join(text.split())
+
+        allowed_programs = {
+            "ingenieria industrial",
+            "ingenieria de software",
+        }
+
         resultados = []
+        created_count = 0
+        skipped_program_count = 0
+        skipped_existing_count = 0
+        skipped_existing_profile_count = 0
+        skipped_empty_email_count = 0
+        error_count = 0
 
         for _, row in df.iterrows():
             email = str(row.get("CORREO_ESTUDIANTE", "")).strip().lower().replace(" ", "")
-            if not email or email == "nan" or User.objects.filter(email=email).exists():
+            if not email or email == "nan":
+                skipped_empty_email_count += 1
                 continue
 
-            program_name = str(row.get("DESCRIPCION_PROGRAMA", "")).strip().lower()
-            if program_name not in [
-                "ingenieria industrial",
-                "ingeniería industrial",
-                "ingenieria de software",
-                "ingeniería de software",
-            ]:
+            program_name = normalize_text(row.get("DESCRIPCION_PROGRAMA", ""))
+            if program_name not in allowed_programs:
+                skipped_program_count += 1
                 continue
 
             try:
-                password = generar_password()
-                user = User.objects.create_user(email=email, password=password, role="student")
+                user = User.objects.filter(email=email).first()
+                if user:
+                    skipped_existing_count += 1
+                    if StudentProfile.objects.filter(user=user).exists():
+                        skipped_existing_profile_count += 1
+                        continue
+                    password = "Usuario existente"
+                else:
+                    password = generar_password()
+                    user = User.objects.create_user(email=email, password=password, role="student")
 
-                campus, _ = Campus.objects.get_or_create(
-                    name=str(row.get("DESCRIPCION_SEDE", "")).strip() or "Sede sin definir"
+                campus_name = str(row.get("DESCRIPCION_SEDE", "")).strip() or "Sede sin definir"
+                campus = Campus.objects.filter(name=campus_name).first()
+                if campus is None:
+                    campus = Campus.objects.create(name=campus_name)
+
+                faculty_name = (
+                    str(row.get("DESCRIPCION_FACULTAD", "")).strip() or "Facultad sin definir"
                 )
-                faculty, _ = Faculty.objects.get_or_create(
-                    name=str(row.get("DESCRIPCION_FACULTAD", "")).strip() or "Facultad sin definir",
-                    defaults={"campus": campus},
+                faculty = Faculty.objects.filter(name=faculty_name).first()
+                if faculty is None:
+                    faculty = Faculty.objects.create(name=faculty_name, campus=campus)
+
+                program_name_raw = (
+                    str(row.get("DESCRIPCION_PROGRAMA", "")).strip() or "Programa sin definir"
                 )
-                program, _ = AcademicProgram.objects.get_or_create(
-                    name=str(row.get("DESCRIPCION_PROGRAMA", "")).strip() or "Programa sin definir",
-                    defaults={"faculty": faculty, "campus": campus},
-                )
+                program = AcademicProgram.objects.filter(name=program_name_raw).first()
+                if program is None:
+                    program = AcademicProgram.objects.create(
+                        name=program_name_raw,
+                        faculty=faculty,
+                        campus=campus,
+                    )
 
                 StudentProfile.objects.create(
                     user=user,
@@ -269,12 +303,22 @@ def import_view(request):
                     jornada=str(row.get("JORNADA", "")),
                     address="",
                 )
+                created_count += 1
                 resultados.append({"email": email, "password": password})
             except Exception as exc:
+                error_count += 1
                 resultados.append({"email": email, "password": f"Error: {exc}"})
 
         context["resultados"] = resultados
-        context["success_message"] = f"Se procesaron {len(resultados)} usuarios"
+        context["success_message"] = (
+            "Importacion completada. "
+            f"Creados: {created_count}. "
+            f"Omitidos por programa: {skipped_program_count}. "
+            f"Omitidos por correo existente: {skipped_existing_count}. "
+            f"Omitidos por usuario con perfil existente: {skipped_existing_profile_count}. "
+            f"Omitidos por correo vacio: {skipped_empty_email_count}. "
+            f"Errores: {error_count}."
+        )
 
     return render(request, "dashboard/import.html", context)
 
@@ -309,10 +353,17 @@ def student_profile_setup_view(request):
     if profile is None:
         profile = StudentProfile(user=request.user)
 
+    readonly_form = StudentSelfReadonlyForm(instance=profile)
+    for field in readonly_form.fields.values():
+        field.disabled = True
+
     if request.method == "POST":
         form = StudentSelfProfileForm(request.POST, instance=profile)
         if form.is_valid():
-            profile = form.save(commit=False)
+            profile = StudentProfile.objects.filter(user=request.user).first() or StudentProfile(
+                user=request.user
+            )
+            profile.address = form.cleaned_data["address"]
             profile.user = request.user
             if not profile.student_code:
                 profile.student_code = generar_codigo_estudiantil()
@@ -331,6 +382,7 @@ def student_profile_setup_view(request):
         "access_support/student_profile_setup.html",
         {
             "form": form,
+            "readonly_form": readonly_form,
             "has_profile": profile.pk is not None,
             "user_email": request.user.email,
         },
