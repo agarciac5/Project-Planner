@@ -1,11 +1,11 @@
 {% extends 'base/base.html' %}
-{% block title %}Inicio director académico | UNIMINUTO Planner{% endblock %}
+{% block title %}Inicio director academico | UNIMINUTO Planner{% endblock %}
 {% block content %}
 <section class="hero card soft-gradient">
     <div>
-        <p class="eyebrow">Vista de director académico</p>
+        <p class="eyebrow">Vista de director academico</p>
         <h2>Hola, {{ user_name }}</h2>
-        <p>Coordina la planeación semestral, genera propuestas de horario y publica resultados para estudiantes y docentes.</p>
+        <p>Coordina la planeacion semestral, genera propuestas de horario y publica resultados para estudiantes y docentes.</p>
     </div>
     <div class="hero-badges">
         <span>{{ current_role_label }}</span>
@@ -24,16 +24,17 @@
 </section>
 
 <section class="section-heading">
-    <h2>Planeación y emisión de horarios</h2>
-    <p>El director concentra las funciones de generación, selección, aplicación y publicación.</p>
+    <h2>Planeacion y emision de horarios</h2>
+    <p>El director concentra las funciones de generacion, seleccion, aplicacion y publicacion.</p>
 </section>
 
 <section class="card-grid">
-    <a class="feature-card" href="{% url 'semester_planner' %}"><div class="feature-icon">🧠</div><h3>Plan semestral</h3><p>Genera opciones según demanda, docentes, aulas y restricciones.</p></a>
-    <a class="feature-card" href="{% url 'saved_semester_runs' %}"><div class="feature-icon">💾</div><h3>Planes guardados</h3><p>Revisa, aplica o publica planes semestrales.</p></a>
-    <a class="feature-card" href="{% url 'generate_schedule' %}"><div class="feature-icon">⚙️</div><h3>Generar horario</h3><p>Genera propuestas por docente y periodo.</p></a>
-    <a class="feature-card" href="{% url 'teacher_complete_schedule' %}"><div class="feature-icon">👩‍🏫</div><h3>Horario docente</h3><p>Consulta distribución de clases y actividades.</p></a>
-    <a class="feature-card" href="{% url 'student_complete_schedule' %}"><div class="feature-icon">🎓</div><h3>Horario estudiantil</h3><p>Valida lo que verá cada estudiante.</p></a>
-    <a class="feature-card" href="{% url 'subjects' %}"><div class="feature-icon">📘</div><h3>Materias</h3><p>Administra la base académica antes de planear.</p></a>
+    <a class="feature-card" href="{% url 'semester_planner' %}"><div class="feature-icon">&#129504;</div><h3>Plan semestral</h3><p>Genera opciones segun demanda, docentes, aulas y restricciones.</p></a>
+    <a class="feature-card" href="{% url 'saved_semester_runs' %}"><div class="feature-icon">&#128190;</div><h3>Planes guardados</h3><p>Revisa, aplica o publica planes semestrales.</p></a>
+    <a class="feature-card" href="{% url 'generate_schedule_students' %}"><div class="feature-icon">&#9881;</div><h3>Generar horario</h3><p>Genera propuestas por docente y periodo.</p></a>
+    <a class="feature-card" href="{% url 'teacher_complete_schedule' %}"><div class="feature-icon">&#128197;</div><h3>Horario docente</h3><p>Consulta distribucion de clases y actividades.</p></a>
+    <a class="feature-card" href="{% url 'student_complete_schedule' %}"><div class="feature-icon">&#127891;</div><h3>Horario estudiantil</h3><p>Valida lo que vera cada estudiante.</p></a>
+    <a class="feature-card" href="{% url 'subjects' %}"><div class="feature-icon">&#128214;</div><h3>Materias</h3><p>Administra la base academica antes de planear.</p></a>
+    <a class="feature-card" href="{% url 'assign_roles' %}"><div class="feature-icon">@</div><h3>Roles y permisos</h3><p>Busca cuentas por correo institucional y ajusta su acceso cuando haga falta.</p></a>
 </section>
 {% endblock %}

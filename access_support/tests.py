@@ -8,6 +8,7 @@ from django.urls import reverse
 
 from access_support.models import StudentProfile, User
 from academic_core.models import AcademicProgram, Campus, Faculty
+from teaching.models import Teacher
 
 
 class RegisterViewTest(TestCase):
@@ -187,3 +188,173 @@ class ImportViewTest(TestCase):
         self.assertIn("No se subio ningun archivo", messages)
         self.assertEqual(User.objects.filter(role="student").count(), 0)
         self.assertEqual(StudentProfile.objects.count(), 0)
+
+
+class AssignRolesViewTest(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            email="admin.roles@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="admin",
+        )
+        self.target_user = User.objects.create_user(
+            email="ana.perez@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="student",
+        )
+        self.target_profile = StudentProfile.objects.create(
+            user=self.target_user,
+            student_code="EST-900001",
+            full_name="Ana Perez",
+            address="Cra 10",
+        )
+        self.other_user = User.objects.create_user(
+            email="luis.gomez@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="teacher",
+        )
+
+    def test_assign_roles_view_allows_coordinator_role(self):
+        coordinator_user = User.objects.create_user(
+            email="director@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="coordinator",
+        )
+        self.client.force_login(coordinator_user)
+
+        response = self.client.get(reverse("assign_roles"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_assign_roles_view_blocks_teacher_role(self):
+        teacher_user = User.objects.create_user(
+            email="docente.roles@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="teacher",
+        )
+        self.client.force_login(teacher_user)
+
+        response = self.client.get(reverse("assign_roles"))
+
+        self.assertRedirects(response, reverse("home"), fetch_redirect_response=False)
+
+    def test_assign_roles_view_filters_users_by_partial_email(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse("assign_roles"), {"email_query": "ana"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ana.perez@uniminuto.edu.co")
+        self.assertNotContains(response, "luis.gomez@uniminuto.edu.co")
+
+    def test_admin_can_assign_any_role_including_coordinator(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse("assign_roles"),
+            {
+                "user_id": self.target_user.id,
+                "role": "coordinator",
+                "search": "ana.perez",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('assign_roles')}?email_query=ana.perez",
+        )
+        self.target_user.refresh_from_db()
+        self.assertEqual(self.target_user.role, "coordinator")
+
+    def test_assigning_teacher_role_creates_teacher_profile(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse("assign_roles"),
+            {
+                "user_id": self.target_user.id,
+                "role": "teacher",
+                "search": "ana.perez",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('assign_roles')}?email_query=ana.perez",
+        )
+        self.target_user.refresh_from_db()
+        teacher_profile = Teacher.objects.get(user=self.target_user)
+        self.assertEqual(self.target_user.role, "teacher")
+        self.assertEqual(teacher_profile.first_name, "Ana")
+        self.assertEqual(teacher_profile.last_name, "Perez")
+        self.assertEqual(teacher_profile.address, "Cra 10")
+
+    def test_assigning_student_role_creates_student_profile_and_detaches_teacher_profile(self):
+        teacher_user = User.objects.create_user(
+            email="docente.cambio@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="teacher",
+        )
+        teacher_profile = Teacher.objects.create(
+            user=teacher_user,
+            teacher_id="DOC-900",
+            first_name="Laura",
+            last_name="Gomez",
+            address="Av 1",
+            is_active=True,
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse("assign_roles"),
+            {
+                "user_id": teacher_user.id,
+                "role": "student",
+                "search": "docente.cambio",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('assign_roles')}?email_query=docente.cambio",
+        )
+        teacher_user.refresh_from_db()
+        teacher_profile.refresh_from_db()
+        student_profile = StudentProfile.objects.get(user=teacher_user)
+        self.assertEqual(teacher_user.role, "student")
+        self.assertEqual(student_profile.full_name, "Laura Gomez")
+        self.assertEqual(student_profile.address, "Av 1")
+        self.assertIsNone(teacher_profile.user)
+
+    def test_assign_roles_rejects_non_institutional_accounts_posted_manually(self):
+        local_user = User.objects.create_user(
+            email="student.local@autogen.local",
+            password="ClaveSegura123",
+            role="student",
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse("assign_roles"),
+            {
+                "user_id": local_user.id,
+                "role": "admin",
+                "search": "student.local",
+            },
+            follow=True,
+        )
+
+        local_user.refresh_from_db()
+        self.assertEqual(local_user.role, "student")
+        self.assertContains(response, "Solo se pueden gestionar cuentas institucionales")
+
+    def test_students_view_excludes_profiles_of_users_without_student_role(self):
+        self.target_user.role = "coordinator"
+        self.target_user.save(update_fields=["role"])
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse("students"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "ana.perez@uniminuto.edu.co")
+        self.assertNotContains(response, "Ana Perez")

@@ -1,12 +1,16 @@
 import random
+import re
 import string
 import unicodedata
+from urllib.parse import urlencode
 
 import pandas as pd
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from academic_core.models import AcademicProgram, AcademicTerm, Campus, Course, Faculty, StudyPlan
 from academic_core.services.academic_services import get_programs
@@ -14,7 +18,14 @@ from classrooms.models import Classroom
 from scheduling_enrollment.models import Enrollment, EnrollmentQueue, SemesterScheduleRun
 from teaching.models import Teacher
 
-from .forms import StudentSelfProfileCreateForm, StudentSelfProfileForm, StudentSelfReadonlyForm
+from .forms import (
+    INSTITUTIONAL_EMAIL_DOMAIN,
+    StudentSelfProfileCreateForm,
+    StudentSelfProfileForm,
+    StudentSelfReadonlyForm,
+    UserRoleAssignmentForm,
+    UserRoleSearchForm,
+)
 from .login import EmailLoginForm
 from .models import StudentProfile, User
 from .role_access import (
@@ -25,6 +36,154 @@ from .role_access import (
     role_label,
     roles_required,
 )
+
+
+def _is_institutional_email(email):
+    return str(email or "").strip().lower().endswith(INSTITUTIONAL_EMAIL_DOMAIN)
+
+
+def _student_profiles():
+    return StudentProfile.objects.select_related("user", "faculty", "campus", "program")
+
+
+def _teacher_profile_for_user(user):
+    return getattr(user, "teacher_profile", None)
+
+
+def _full_name_from_email(email):
+    local_part = str(email or "").split("@", 1)[0]
+    normalized = re.sub(r"[._-]+", " ", local_part)
+    normalized = " ".join(normalized.split()).strip()
+    return normalized.title() or "Usuario Institucional"
+
+
+def _split_person_name(full_name, email):
+    normalized = " ".join(str(full_name or "").split()).strip() or _full_name_from_email(email)
+    parts = normalized.split()
+    first_name = parts[0][:50]
+    last_name = " ".join(parts[1:])[:50] if len(parts) > 1 else "Autogenerado"
+    return first_name, last_name
+
+
+def _generate_teacher_id_for_user(user):
+    email_local_part = str(user.email or "").split("@", 1)[0]
+    base = "".join(ch for ch in email_local_part.upper() if ch.isalnum()) or str(user.id)
+    teacher_id = f"DOC-AUTO-{base[:10]}"
+    suffix = 1
+    while Teacher.objects.filter(teacher_id=teacher_id).exclude(user=user).exists():
+        suffix += 1
+        teacher_id = f"DOC-AUTO-{base[:7]}{suffix:03d}"
+    return teacher_id
+
+
+def _ensure_teacher_profile(user):
+    teacher_profile = _teacher_profile_for_user(user)
+    if teacher_profile:
+        return teacher_profile, False
+
+    student_profile = (
+        _student_profiles()
+        .filter(user=user)
+        .first()
+    )
+    full_name = student_profile.full_name if student_profile else ""
+    first_name, last_name = _split_person_name(full_name, user.email)
+    program = student_profile.program if student_profile else None
+    faculty = student_profile.faculty if student_profile and student_profile.faculty else (
+        program.faculty if program else None
+    )
+    campus = student_profile.campus if student_profile and student_profile.campus else (
+        program.campus if program else None
+    )
+
+    teacher_profile = Teacher.objects.create(
+        user=user,
+        teacher_id=_generate_teacher_id_for_user(user),
+        first_name=first_name,
+        last_name=last_name,
+        address=student_profile.address if student_profile else "",
+        program=program,
+        faculty=faculty,
+        campus=campus,
+        is_active=True,
+    )
+    return teacher_profile, True
+
+
+def _ensure_student_profile(user):
+    student_profile = _student_profiles().filter(user=user).first()
+    if student_profile:
+        return student_profile, False
+
+    teacher_profile = _teacher_profile_for_user(user)
+    full_name = _full_name_from_email(user.email)
+    address = ""
+    program = None
+    faculty = None
+    campus = None
+
+    if teacher_profile:
+        full_name = " ".join(
+            part for part in [teacher_profile.first_name, teacher_profile.last_name] if part
+        ).strip() or full_name
+        address = teacher_profile.address
+        program = teacher_profile.program
+        faculty = teacher_profile.faculty if teacher_profile.faculty else (
+            program.faculty if program else None
+        )
+        campus = teacher_profile.campus if teacher_profile.campus else (
+            program.campus if program else None
+        )
+
+    student_profile = StudentProfile.objects.create(
+        user=user,
+        student_code=generar_codigo_estudiantil(),
+        full_name=full_name,
+        address=address,
+        program=program,
+        faculty=faculty,
+        campus=campus,
+    )
+    return student_profile, True
+
+
+def _detach_teacher_profile(user):
+    teacher_profile = _teacher_profile_for_user(user)
+    if not teacher_profile:
+        return None
+    teacher_profile.user = None
+    teacher_profile.save(update_fields=["user"])
+    return teacher_profile
+
+
+def _sync_role_profiles(user, previous_role, new_role):
+    notices = []
+
+    if new_role == "student":
+        _, created_student_profile = _ensure_student_profile(user)
+        if created_student_profile:
+            notices.append(
+                "Se creo un perfil estudiantil basico para esta cuenta. "
+                "Completa sus datos despues si hace falta."
+            )
+
+    if new_role == "teacher":
+        teacher_profile, created_teacher_profile = _ensure_teacher_profile(user)
+        if created_teacher_profile:
+            notices.append(
+                f"Se creo el perfil docente {teacher_profile.teacher_id} y quedo vinculado "
+                "automaticamente a la cuenta."
+            )
+
+    if previous_role == "teacher" and new_role != "teacher":
+        detached_teacher_profile = _detach_teacher_profile(user)
+        if detached_teacher_profile:
+            notices.append(
+                f"El perfil docente {detached_teacher_profile.teacher_id} quedo desvinculado "
+                "del usuario para conservar su historial."
+            )
+
+    return notices
 
 
 def _base_context(request):
@@ -95,7 +254,11 @@ def _role_dashboard_context(request):
         context.update(
             {
                 "stats": [
-                    _dashboard_card("Estudiantes", StudentProfile.objects.count(), "Perfiles registrados"),
+                    _dashboard_card(
+                        "Estudiantes",
+                        StudentProfile.objects.filter(user__role="student").count(),
+                        "Perfiles de usuarios con rol estudiantil",
+                    ),
                     _dashboard_card("Docentes", Teacher.objects.count(), "Docentes activos y registrados"),
                     _dashboard_card("Materias", Course.objects.count(), "Catalogo academico"),
                     _dashboard_card("Aulas", Classroom.objects.count(), "Recursos fisicos"),
@@ -160,7 +323,11 @@ def calendar_view(request):
 @roles_required(*ACADEMIC_MANAGEMENT_ROLES)
 def students_view(request):
     context = _base_context(request)
-    context["items"] = StudentProfile.objects.select_related("user", "faculty", "campus", "program").order_by("id")
+    context["items"] = (
+        _student_profiles()
+        .filter(user__role="student")
+        .order_by("id")
+    )
     return render(request, "dashboard/students.html", context)
 
 
@@ -169,6 +336,108 @@ def programs_view(request):
     context = _base_context(request)
     context["items"] = get_programs()
     return render(request, "dashboard/programs.html", context)
+
+
+def _institutional_users():
+    return User.objects.filter(email__iendswith=INSTITUTIONAL_EMAIL_DOMAIN).order_by("email")
+
+
+def _role_assignment_rows(users, search_term):
+    rows = []
+    for user in users:
+        has_teacher_profile = bool(_teacher_profile_for_user(user))
+        has_student_profile = _student_profiles().filter(user=user).exists()
+        rows.append(
+            {
+                "user": user,
+                "has_teacher_profile": has_teacher_profile,
+                "has_student_profile": has_student_profile,
+                "form": UserRoleAssignmentForm(
+                    initial={
+                        "user_id": user.id,
+                        "role": user.role,
+                        "search": search_term,
+                    }
+                ),
+            }
+        )
+    return rows
+
+
+@roles_required(*ACADEMIC_MANAGEMENT_ROLES)
+def assign_roles_view(request):
+    query = ""
+    users = User.objects.none()
+    searched = False
+
+    if request.method == "POST":
+        assignment_form = UserRoleAssignmentForm(request.POST)
+        search_form = UserRoleSearchForm(initial={"email_query": request.POST.get("search", "")})
+
+        if assignment_form.is_valid():
+            user = assignment_form.get_user()
+            new_role = assignment_form.cleaned_data["role"]
+            search_term = assignment_form.cleaned_data["search"]
+            previous_role = user.role
+            role_labels = dict(User.ROLE_CHOICES)
+            previous_role_label = role_labels.get(previous_role, previous_role)
+            notices = []
+
+            with transaction.atomic():
+                if previous_role != new_role:
+                    user.role = new_role
+                    user.save(update_fields=["role"])
+                    notices = _sync_role_profiles(user, previous_role, new_role)
+                    messages.success(
+                        request,
+                        f"El rol de {user.email} cambio de {previous_role_label} a "
+                        f"{role_labels[new_role]}.",
+                    )
+                else:
+                    notices = _sync_role_profiles(user, previous_role, new_role)
+                    messages.success(
+                        request,
+                        f"{user.email} ya tiene el rol {previous_role_label}.",
+                    )
+
+            for notice in notices:
+                messages.info(request, notice)
+
+            redirect_url = reverse("assign_roles")
+            if search_term:
+                redirect_url = f"{redirect_url}?{urlencode({'email_query': search_term})}"
+            return redirect(redirect_url)
+
+        error_messages = []
+        for field_errors in assignment_form.errors.values():
+            error_messages.extend(field_errors)
+        messages.error(
+            request,
+            " ".join(error_messages)
+            or "No fue posible actualizar el rol. Verifica el usuario y el rol seleccionado.",
+        )
+        query = request.POST.get("search", "").strip().lower()
+        searched = bool(query)
+        if query:
+            users = _institutional_users().filter(email__icontains=query)[:50]
+    else:
+        search_form = UserRoleSearchForm(request.GET or None)
+        if search_form.is_valid():
+            query = search_form.cleaned_data["email_query"]
+            searched = bool(query)
+            if query:
+                users = _institutional_users().filter(email__icontains=query)[:50]
+
+    context = _base_context(request)
+    context.update(
+        {
+            "search_form": search_form,
+            "rows": _role_assignment_rows(users, query),
+            "searched": searched,
+            "search_term": query,
+        }
+    )
+    return render(request, "access_support/assign_roles.html", context)
 
 
 def generar_password(longitud=10):
@@ -400,7 +669,7 @@ def register_view(request):
         password = request.POST.get("password")
         confirm = request.POST.get("confirm")
 
-        if not email.endswith("@uniminuto.edu.co"):
+        if not _is_institutional_email(email):
             messages.error(request, "Solo se permiten correos institucionales (@uniminuto.edu.co)")
             return render(request, "access_support/register.html")
 

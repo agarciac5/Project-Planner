@@ -156,6 +156,13 @@ class StudentListView(AcademicManagementRequiredMixin, ListView):
     template_name = "crud/student_list.html"
     context_object_name = "items"
 
+    def get_queryset(self):
+        return (
+            StudentProfile.objects.select_related("user", "faculty", "campus", "program")
+            .filter(user__role="student")
+            .order_by("id")
+        )
+
 
 class StudentCreateView(AcademicManagementRequiredMixin, CreateView):
     model = StudentProfile
