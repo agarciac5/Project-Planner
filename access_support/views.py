@@ -14,12 +14,11 @@ from classrooms.models import Classroom
 from scheduling_enrollment.models import Enrollment, EnrollmentQueue, SemesterScheduleRun
 from teaching.models import Teacher
 
-from .forms import StudentSelfProfileForm, StudentSelfReadonlyForm
+from .forms import StudentSelfProfileCreateForm, StudentSelfProfileForm, StudentSelfReadonlyForm
 from .login import EmailLoginForm
 from .models import StudentProfile, User
 from .role_access import (
     ACADEMIC_MANAGEMENT_ROLES,
-    SCHEDULE_MANAGEMENT_ROLES,
     SCHEDULE_READ_ROLES,
     normalize_role,
     role_dashboard_template,
@@ -156,11 +155,6 @@ def calendar_view(request):
     context = _base_context(request)
     context["schedule_rows"] = schedule_rows
     return render(request, "scheduling/schedule.html", context)
-
-
-@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
-def add_calendar_view(request):
-    return redirect("generate_schedule")
 
 
 @roles_required(*ACADEMIC_MANAGEMENT_ROLES)
@@ -350,20 +344,21 @@ def student_profile_setup_view(request):
         return redirect("profile")
 
     profile = StudentProfile.objects.filter(user=request.user).first()
+    has_profile = profile is not None
     if profile is None:
         profile = StudentProfile(user=request.user)
 
-    readonly_form = StudentSelfReadonlyForm(instance=profile)
-    for field in readonly_form.fields.values():
-        field.disabled = True
+    readonly_form = None
+    if has_profile:
+        readonly_form = StudentSelfReadonlyForm(instance=profile)
+        for field in readonly_form.fields.values():
+            field.disabled = True
 
     if request.method == "POST":
-        form = StudentSelfProfileForm(request.POST, instance=profile)
+        form_class = StudentSelfProfileForm if has_profile else StudentSelfProfileCreateForm
+        form = form_class(request.POST, instance=profile)
         if form.is_valid():
-            profile = StudentProfile.objects.filter(user=request.user).first() or StudentProfile(
-                user=request.user
-            )
-            profile.address = form.cleaned_data["address"]
+            profile = form.save(commit=False)
             profile.user = request.user
             if not profile.student_code:
                 profile.student_code = generar_codigo_estudiantil()
@@ -375,7 +370,8 @@ def student_profile_setup_view(request):
             messages.success(request, "Tu perfil estudiantil fue guardado correctamente.")
             return redirect("profile")
     else:
-        form = StudentSelfProfileForm(instance=profile)
+        form_class = StudentSelfProfileForm if has_profile else StudentSelfProfileCreateForm
+        form = form_class(instance=profile)
 
     return render(
         request,
@@ -383,7 +379,7 @@ def student_profile_setup_view(request):
         {
             "form": form,
             "readonly_form": readonly_form,
-            "has_profile": profile.pk is not None,
+            "has_profile": has_profile,
             "user_email": request.user.email,
         },
     )

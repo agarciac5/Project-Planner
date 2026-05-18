@@ -33,7 +33,7 @@ ROLE_LABELS = {
 
 DIRECTOR_ROLES = {ROLE_COORDINATOR}
 ACADEMIC_MANAGEMENT_ROLES = {ROLE_ADMIN, ROLE_COORDINATOR}
-SCHEDULE_MANAGEMENT_ROLES = {ROLE_COORDINATOR}
+SCHEDULE_MANAGEMENT_ROLES = {ROLE_ADMIN, ROLE_COORDINATOR}
 SCHEDULE_READ_ROLES = {ROLE_ADMIN, ROLE_COORDINATOR}
 
 
@@ -61,6 +61,7 @@ ROLE_NAV_ITEMS = {
         {"label": "Facultades", "url_name": "faculties"},
         {"label": "Sedes", "url_name": "campuses"},
         {"label": "Aulas", "url_name": "classrooms"},
+        {"label": "Plan semestral", "url_name": "semester_planner"},
         {"label": "Horario docente", "url_name": "teacher_complete_schedule"},
         {"label": "Horario estudiantil", "url_name": "student_complete_schedule"},
         {"label": "Planes guardados", "url_name": "saved_semester_runs"},
@@ -70,7 +71,6 @@ ROLE_NAV_ITEMS = {
         {"label": "Inicio", "url_name": "home"},
         {"label": "Plan semestral", "url_name": "semester_planner"},
         {"label": "Planes guardados", "url_name": "saved_semester_runs"},
-        {"label": "Generar horario", "url_name": "generate_schedule"},
         {"label": "Horario docente", "url_name": "teacher_complete_schedule"},
         {"label": "Horario estudiantil", "url_name": "student_complete_schedule"},
         {"label": "Materias", "url_name": "subjects"},

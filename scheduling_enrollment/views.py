@@ -968,6 +968,19 @@ def semester_planner_view(request):
         messages.error(request, "Debes seleccionar un periodo academico.")
         return render(request, "scheduling/semester_planner.html", context)
 
+    selected_term = get_object_or_404(AcademicTerm, id=term_id)
+    waiting_count = EnrollmentQueue.objects.filter(
+        term=selected_term,
+        status="waiting",
+    ).count()
+    if waiting_count == 0:
+        messages.warning(
+            request,
+            f"No hay solicitudes pendientes para el periodo {selected_term}. "
+            "El plan semestral solo se genera con matriculas en lista de espera.",
+        )
+        return render(request, "scheduling/semester_planner.html", context)
+
     run = generate_semester_schedule_options(term_id=int(term_id), auto_apply_best=False)
     if not run:
         messages.warning(

@@ -1,6 +1,5 @@
 from django.urls import path
 from .views import (
-    generate_schedule_view,
     generate_schedule_view_students,
     enrollment_view,
     my_student_schedule_view,
@@ -22,7 +21,6 @@ from .views import (
 )
  
 urlpatterns = [
-    path("generar-horario/", generate_schedule_view, name="generate_schedule"),
     path("generar-horario-estudiantes/", generate_schedule_view_students, name="generate_schedule_students"),
     path("matricula/", enrollment_view, name="enrollment"),
     path("mi-horario/", my_student_schedule_view, name="my_student_schedule"),

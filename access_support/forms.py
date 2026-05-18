@@ -104,6 +104,33 @@ class StudentSelfProfileForm(forms.ModelForm):
         }
 
 
+class StudentSelfProfileCreateForm(forms.ModelForm):
+    class Meta:
+        model = StudentProfile
+        fields = [
+            "full_name",
+            "document_type",
+            "document_number",
+            "program",
+            "faculty",
+            "campus",
+            "level",
+            "jornada",
+            "address",
+        ]
+        labels = {
+            "full_name": "Nombre completo",
+            "document_type": "Tipo de documento",
+            "document_number": "Numero de documento",
+            "program": "Programa",
+            "faculty": "Facultad",
+            "campus": "Sede",
+            "level": "Pregrado",
+            "jornada": "Jornada",
+            "address": "Direccion",
+        }
+
+
 class StudentSelfReadonlyForm(forms.ModelForm):
     class Meta:
         model = StudentProfile
