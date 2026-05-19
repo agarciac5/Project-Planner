@@ -159,6 +159,40 @@ class StudentSelfReadonlyForm(forms.ModelForm):
         }
 
 
+class TeacherSelfProfileForm(forms.ModelForm):
+    class Meta:
+        model = Teacher
+        fields = ["address"]
+        labels = {
+            "address": "Direccion",
+        }
+
+
+class TeacherSelfReadonlyForm(forms.ModelForm):
+    class Meta:
+        model = Teacher
+        fields = [
+            "teacher_id",
+            "first_name",
+            "last_name",
+            "program",
+            "faculty",
+            "campus",
+            "contract",
+            "is_active",
+        ]
+        labels = {
+            "teacher_id": "Codigo docente",
+            "first_name": "Nombres",
+            "last_name": "Apellidos",
+            "program": "Programa",
+            "faculty": "Facultad",
+            "campus": "Sede",
+            "contract": "Contrato",
+            "is_active": "Activo",
+        }
+
+
 class UserRoleSearchForm(forms.Form):
     email_query = forms.CharField(
         required=False,

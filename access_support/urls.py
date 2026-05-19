@@ -13,6 +13,7 @@ from .views import (
     profile_view,
     settings_view,
     student_profile_setup_view,
+    teacher_profile_setup_view,
 )
 from .crud_views import (
     CampusListView,
@@ -48,6 +49,7 @@ urlpatterns = [
     path("importar/", import_view, name="import"),
     path("perfil/", profile_view, name="profile"),
     path("perfil-estudiantil/", student_profile_setup_view, name="student_profile_setup"),
+    path("perfil-docente/", teacher_profile_setup_view, name="teacher_profile_setup"),
     path("ajustes/", settings_view, name="settings"),
     path("sedes/", CampusListView.as_view(), name="campus_list"),
     path("sedes/crear/", CampusCreateView.as_view(), name="campus_create"),

@@ -41,6 +41,37 @@
         <div><span>Direccion</span><strong>{% if student_profile %}{{ student_profile.address|default:"-" }}{% else %}-{% endif %}</strong></div>
     </div>
 </section>
+{% elif user.is_authenticated and user.role == "teacher" %}
+<section class="profile-hero card soft-gradient">
+    <div class="avatar-xl">{{ user.email|slice:":2"|upper }}</div>
+    <div>
+        <p class="eyebrow">Mi perfil</p>
+        <h2>{% if teacher %}{{ teacher.first_name }} {{ teacher.last_name }}{% else %}{{ user.email }}{% endif %}</h2>
+        <p>{% if teacher and teacher.program %}{{ teacher.program }}{% else %}Programa sin definir{% endif %} · Docente</p>
+    </div>
+</section>
+
+<section class="stats-grid">
+    <article class="card stat-card"><h3>{% if teacher and teacher.teacher_id %}{{ teacher.teacher_id }}{% else %}-{% endif %}</h3><p>Codigo</p></article>
+    <article class="card stat-card"><h3>{% if teacher and teacher.campus %}{{ teacher.campus }}{% else %}-{% endif %}</h3><p>Sede</p></article>
+    <article class="card stat-card"><h3>{% if teacher and teacher.faculty %}{{ teacher.faculty }}{% else %}-{% endif %}</h3><p>Facultad</p></article>
+    <article class="card stat-card"><h3>{% if teacher and teacher.is_active %}Si{% else %}No{% endif %}</h3><p>Activo</p></article>
+</section>
+
+<section class="card info-card">
+    <div class="section-heading compact">
+        <h3>Informacion docente</h3>
+        <a class="listing-top-btn" href="{% url 'teacher_profile_setup' %}">Editar perfil</a>
+    </div>
+    <div class="info-grid">
+        <div><span>Correo</span><strong>{{ user_name }}</strong></div>
+        <div><span>Codigo</span><strong>{% if teacher %}{{ teacher.teacher_id|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Nombres</span><strong>{% if teacher %}{{ teacher.first_name|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Apellidos</span><strong>{% if teacher %}{{ teacher.last_name|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Programa</span><strong>{% if teacher and teacher.program %}{{ teacher.program }}{% else %}-{% endif %}</strong></div>
+        <div><span>Direccion</span><strong>{% if teacher %}{{ teacher.address|default:"-" }}{% else %}-{% endif %}</strong></div>
+    </div>
+</section>
 {% else %}
 <section class="profile-hero card soft-gradient">
     <div class="avatar-xl">{{ user_name|slice:":2"|upper }}</div>

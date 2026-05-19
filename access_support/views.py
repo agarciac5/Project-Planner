@@ -23,6 +23,8 @@ from .forms import (
     StudentSelfProfileCreateForm,
     StudentSelfProfileForm,
     StudentSelfReadonlyForm,
+    TeacherSelfProfileForm,
+    TeacherSelfReadonlyForm,
     UserRoleAssignmentForm,
     UserRoleSearchForm,
 )
@@ -599,7 +601,7 @@ def profile_view(request):
             .first()
         )
     elif request.user.role == "teacher":
-        teacher = getattr(request.user, "teacher_profile", None)
+        teacher = _teacher_profile_for_user(request.user)
 
     context["student_profile"] = student_profile
     context["teacher"] = teacher
@@ -649,6 +651,43 @@ def student_profile_setup_view(request):
             "form": form,
             "readonly_form": readonly_form,
             "has_profile": has_profile,
+            "user_email": request.user.email,
+        },
+    )
+
+
+@login_required
+def teacher_profile_setup_view(request):
+    if request.user.role != "teacher":
+        messages.warning(request, "Este apartado solo esta disponible para docentes.")
+        return redirect("profile")
+
+    teacher = _teacher_profile_for_user(request.user)
+    if teacher is None:
+        messages.warning(request, "Tu usuario no esta vinculado a un perfil docente.")
+        return redirect("profile")
+
+    readonly_form = TeacherSelfReadonlyForm(instance=teacher)
+    for field in readonly_form.fields.values():
+        field.disabled = True
+
+    if request.method == "POST":
+        form = TeacherSelfProfileForm(request.POST, instance=teacher)
+        if form.is_valid():
+            teacher = form.save(commit=False)
+            teacher.user = request.user
+            teacher.save(update_fields=["address", "user"])
+            messages.success(request, "Tu perfil docente fue guardado correctamente.")
+            return redirect("profile")
+    else:
+        form = TeacherSelfProfileForm(instance=teacher)
+
+    return render(
+        request,
+        "access_support/teacher_profile_setup.html",
+        {
+            "form": form,
+            "readonly_form": readonly_form,
             "user_email": request.user.email,
         },
     )
