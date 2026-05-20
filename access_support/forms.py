@@ -20,18 +20,36 @@ class FacultyForm(forms.ModelForm):
 
 
 class AcademicProgramForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["program"].queryset = AcademicProgram.objects.filter(
+            name="Ingeniería de Software"
+        )
+
     class Meta:
         model = AcademicProgram
         fields = ["name", "code", "faculty", "campus"]
 
 
 class StudyPlanForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["program"].queryset = AcademicProgram.objects.filter(
+            name="Ingeniería de Software"
+        )
+
     class Meta:
         model = StudyPlan
         fields = ["program", "version", "description"]
 
 
 class CourseForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["study_plan"].queryset = StudyPlan.objects.filter(
+            program__name="Ingeniería de Software"
+        )
+
     class Meta:
         model = Course
         fields = ["name", "code", "credits", "semester", "study_plan"]
@@ -78,23 +96,19 @@ class ClassroomForm(forms.ModelForm):
 
 
 class StudentForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["program"].queryset = AcademicProgram.objects.filter(
+            name="Ingeniería de Software"
+        )
+
     class Meta:
         model = StudentProfile
         fields = [
-            "full_name",
-            "document_type",
-            "document_number",
-            "student_code",
-            "address",
-            "program",
-            "faculty",
-            "campus",
-            "level",
-            "jornada",
+            "full_name", "document_type", "document_number", "student_code",
+            "address", "program", "faculty", "campus", "level", "jornada",
         ]
-        labels = {
-            "level": "Pregrado",
-        }
+        labels = {"level": "Pregrado"}
 
 
 class StudentSelfProfileForm(forms.ModelForm):
@@ -106,19 +120,19 @@ class StudentSelfProfileForm(forms.ModelForm):
         }
 
 
+
 class StudentSelfProfileCreateForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["program"].queryset = AcademicProgram.objects.filter(
+            name="Ingeniería de Software"
+        )
+
     class Meta:
         model = StudentProfile
         fields = [
-            "full_name",
-            "document_type",
-            "document_number",
-            "program",
-            "faculty",
-            "campus",
-            "level",
-            "jornada",
-            "address",
+            "full_name", "document_type", "document_number",
+            "program", "faculty", "campus", "level", "jornada", "address",
         ]
         labels = {
             "full_name": "Nombre completo",
