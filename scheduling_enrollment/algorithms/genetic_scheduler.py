@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 import math
 import random
 from dataclasses import dataclass
@@ -673,4 +671,3 @@ def run_semester_planner(
 
     ordered = sorted(archive.values(), key=lambda result: result.score, reverse=True)
     return _select_diverse_results(ordered, options_limit=options_limit)
->>>>>>> Stashed changes

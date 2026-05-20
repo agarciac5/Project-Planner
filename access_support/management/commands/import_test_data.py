@@ -21,6 +21,7 @@ Carga en orden:
 import pandas as pd
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from access_support.models import User
 
 
 class Command(BaseCommand):
@@ -183,7 +184,7 @@ class Command(BaseCommand):
                 contract_type=str(row["TIPO_CONTRATO"]).strip()
             ).first()
 
-            _, created = Teacher.objects.update_or_create(
+            teacher, created = Teacher.objects.update_or_create(
                 teacher_id=str(row["ID_PROFESOR"]).strip(),
                 defaults={
                     "first_name": str(row["NOMBRES"]).strip(),
@@ -194,9 +195,27 @@ class Command(BaseCommand):
                     "is_active":  bool(row["ACTIVO"]),
                 },
             )
+            if not teacher.user_id:
+                teacher.user = self._ensure_teacher_user(teacher.teacher_id)
+                teacher.save(update_fields=["user"])
             if created:
                 count += 1
         self.stdout.write(f"  {label}:  {count} creados")
+
+    def _ensure_teacher_user(self, teacher_id):
+        base = "".join(ch.lower() for ch in str(teacher_id).strip() if ch.isalnum())
+        if not base:
+            base = "sinid"
+        email = f"teacher.{base}@autogen.local"
+        suffix = 1
+        while User.objects.filter(email=email).exists():
+            suffix += 1
+            email = f"teacher.{base}.{suffix}@autogen.local"
+        return User.objects.create_user(
+            email=email,
+            password="CambioObligatorio2026!",
+            role="teacher",
+        )
 
     # ------------------------------------------------------------------
     # 7 & 10. Disponibilidad (base y extremos comparten la misma lógica)

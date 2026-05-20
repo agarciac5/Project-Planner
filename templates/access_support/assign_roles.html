@@ -1,0 +1,108 @@
+{% extends "base/base.html" %}
+
+{% block title %}Roles y permisos | UNIMINUTO Planner{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="listing-shell">
+        <div class="listing-header">
+            <div class="listing-header-copy">
+                <p class="listing-eyebrow">Administracion de accesos</p>
+                <h2 class="listing-title">Gestion de roles y permisos</h2>
+                <p class="listing-subtitle">Disponible para administradores y coordinadores. Busca usuarios por correo institucional y actualiza su rol.</p>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="
+                    {% if 'success' in message.tags %}alert-success
+                    {% elif 'warning' in message.tags %}alert-warning
+                    {% elif 'error' in message.tags %}alert-danger
+                    {% else %}alert-info{% endif %}
+                ">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <section class="card import-card">
+            <form method="get">
+                <div class="form-grid two">
+                    <label class="field">
+                        <span>{{ search_form.email_query.label }}</span>
+                        {{ search_form.email_query }}
+                    </label>
+                </div>
+
+                <div class="header-actions">
+                    <button type="submit" class="btn btn-primary">Buscar usuarios</button>
+                    {% if search_term %}
+                        <a href="{% url 'assign_roles' %}" class="btn btn-secondary">Limpiar busqueda</a>
+                    {% endif %}
+                </div>
+            </form>
+
+            <p class="table-note">
+                Solo se listan cuentas con correo <strong>@uniminuto.edu.co</strong>.
+                Puedes escribir el correo completo o solo una parte y cambiar el usuario entre estudiante, docente, administrador o coordinador.
+            </p>
+        </section>
+
+        <div class="listing-card">
+            <div class="listing-table-wrap">
+                <table class="listing-table">
+                    <thead>
+                        <tr>
+                            <th>Correo</th>
+                            <th>Rol actual</th>
+                            <th>Rol a asignar</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                <td class="listing-main-text">{{ row.user.email }}</td>
+                                <td>
+                                    <span class="listing-pill listing-pill-soft">{{ row.user.get_role_display }}</span>
+                                </td>
+                                <td>
+                                    <form method="post" class="role-inline-form">
+                                        {% csrf_token %}
+                                        {{ row.form.user_id }}
+                                        {{ row.form.search }}
+                                        <div class="role-inline-controls">
+                                            {{ row.form.role }}
+                                            <button type="submit" class="btn btn-primary">Guardar</button>
+                                        </div>
+                                    </form>
+                                </td>
+                                <td>
+                                    {% if row.user.role == "teacher" and not row.has_teacher_profile %}
+                                        <span class="table-note">Rol docente sin perfil vinculado todavia.</span>
+                                    {% elif row.user.role == "student" and not row.has_student_profile %}
+                                        <span class="table-note">Rol estudiante sin perfil vinculado todavia.</span>
+                                    {% else %}
+                                        <span class="listing-muted">Cuenta lista para usar con el rol seleccionado.</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="listing-empty">
+                                    {% if searched %}
+                                        No se encontraron usuarios institucionales para "{{ search_term }}".
+                                    {% else %}
+                                        Escribe un correo institucional para buscar la cuenta a la que quieres cambiarle permisos.
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

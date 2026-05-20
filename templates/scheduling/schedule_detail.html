@@ -1,0 +1,55 @@
+{% extends "base/base.html" %}
+
+{% block title %}Detalle de horario{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="section-header">
+        <div>
+            <p class="section-eyebrow">Horarios</p>
+            <h2>Detalle de propuesta</h2>
+            <p>Docente: {{ schedule.teacher }} | Periodo: {{ schedule.term }} | Estado: {{ schedule.get_status_display }}</p>
+        </div>
+        <a href="{% url 'saved_semester_runs' %}" class="secondary-btn">Volver</a>
+    </div>
+
+    <div class="content-card">
+        {% if sessions %}
+        <div class="listing-table-wrap">
+            <table class="listing-table">
+                <thead>
+                    <tr>
+                        <th>Codigo</th>
+                        <th>Materia</th>
+                        <th>Dia</th>
+                        <th>Inicio</th>
+                        <th>Fin</th>
+                        <th>Aula</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in sessions %}
+                    <tr>
+                        <td>{{ item.course_code }}</td>
+                        <td>{{ item.course_name }}</td>
+                        <td>{{ item.day }}</td>
+                        <td>{{ item.start_time }}</td>
+                        <td>{{ item.end_time }}</td>
+                        <td>{{ item.classroom }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>No hay sesiones registradas para esta propuesta.</p>
+        {% endif %}
+
+        <form method="post" style="margin-top: 16px; display: flex; gap: 10px;">
+            {% csrf_token %}
+            <button type="submit" name="action" value="approve" class="primary-btn">Aprobar</button>
+            <button type="submit" name="action" value="reject" class="secondary-btn">Rechazar</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

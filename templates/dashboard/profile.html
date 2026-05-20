@@ -1,33 +1,85 @@
 {% extends 'base/base.html' %}
 {% block title %}Perfil | ITM Planner{% endblock %}
 {% block content %}
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+{% if user.is_authenticated and user.role == "student" %}
 <section class="profile-hero card soft-gradient">
-    <div class="avatar-xl">CS</div>
+    <div class="avatar-xl">{{ user.email|slice:":2"|upper }}</div>
     <div>
         <p class="eyebrow">Mi perfil</p>
-        <h2>Carlos David Sanchez Soto</h2>
-        <p>Ingeniería de Software · Estudiante activo</p>
+        <h2>{% if student_profile %}{{ student_profile.full_name|default:user.email }}{% else %}{{ user.email }}{% endif %}</h2>
+        <p>{% if student_profile and student_profile.program %}{{ student_profile.program }}{% else %}Programa sin definir{% endif %} · Estudiante activo</p>
     </div>
 </section>
 
 <section class="stats-grid">
-    <article class="card stat-card"><h3>2026-1</h3><p>Periodo actual</p></article>
-    <article class="card stat-card"><h3>5</h3><p>Materias inscritas</p></article>
-    <article class="card stat-card"><h3>18</h3><p>Créditos</p></article>
-    <article class="card stat-card"><h3>B2</h3><p>Nivel de inglés</p></article>
+    <article class="card stat-card"><h3>{% if student_profile and student_profile.level %}{{ student_profile.level }}{% else %}-{% endif %}</h3><p>Nivel</p></article>
+    <article class="card stat-card"><h3>{% if student_profile and student_profile.jornada %}{{ student_profile.jornada }}{% else %}-{% endif %}</h3><p>Jornada</p></article>
+    <article class="card stat-card"><h3>{% if student_profile and student_profile.student_code %}{{ student_profile.student_code }}{% else %}-{% endif %}</h3><p>Codigo</p></article>
+    <article class="card stat-card"><h3>{% if student_profile and student_profile.campus %}{{ student_profile.campus }}{% else %}-{% endif %}</h3><p>Sede</p></article>
 </section>
 
 <section class="card info-card">
     <div class="section-heading compact">
-        <h3>Información personal</h3>
+        <h3>Informacion personal</h3>
+        <a class="listing-top-btn" href="{% url 'student_profile_setup' %}">
+            {% if student_profile %}Editar perfil{% else %}Completar perfil{% endif %}
+        </a>
     </div>
     <div class="info-grid">
         <div><span>Correo</span><strong>{{ user_name }}</strong></div>
-        <div><span>Código</span><strong>202312345</strong></div>
-        <div><span>Documento</span><strong>CC 1.000.000.000</strong></div>
-        <div><span>Programa</span><strong>Ingeniería de Software</strong></div>
-        <div><span>Jornada</span><strong>Diurna</strong></div>
-        <div><span>Nivel</span><strong>6</strong></div>
+        <div><span>Codigo</span><strong>{% if student_profile %}{{ student_profile.student_code|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Documento</span><strong>{% if student_profile %}{{ student_profile.document_type|default:"" }} {{ student_profile.document_number|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Programa</span><strong>{% if student_profile and student_profile.program %}{{ student_profile.program }}{% else %}-{% endif %}</strong></div>
+        <div><span>Jornada</span><strong>{% if student_profile %}{{ student_profile.jornada|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Nivel</span><strong>{% if student_profile %}{{ student_profile.level|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Direccion</span><strong>{% if student_profile %}{{ student_profile.address|default:"-" }}{% else %}-{% endif %}</strong></div>
     </div>
 </section>
+{% elif user.is_authenticated and user.role == "teacher" %}
+<section class="profile-hero card soft-gradient">
+    <div class="avatar-xl">{{ user.email|slice:":2"|upper }}</div>
+    <div>
+        <p class="eyebrow">Mi perfil</p>
+        <h2>{% if teacher %}{{ teacher.first_name }} {{ teacher.last_name }}{% else %}{{ user.email }}{% endif %}</h2>
+        <p>{% if teacher and teacher.program %}{{ teacher.program }}{% else %}Programa sin definir{% endif %} · Docente</p>
+    </div>
+</section>
+
+<section class="stats-grid">
+    <article class="card stat-card"><h3>{% if teacher and teacher.teacher_id %}{{ teacher.teacher_id }}{% else %}-{% endif %}</h3><p>Codigo</p></article>
+    <article class="card stat-card"><h3>{% if teacher and teacher.campus %}{{ teacher.campus }}{% else %}-{% endif %}</h3><p>Sede</p></article>
+    <article class="card stat-card"><h3>{% if teacher and teacher.faculty %}{{ teacher.faculty }}{% else %}-{% endif %}</h3><p>Facultad</p></article>
+    <article class="card stat-card"><h3>{% if teacher and teacher.is_active %}Si{% else %}No{% endif %}</h3><p>Activo</p></article>
+</section>
+
+<section class="card info-card">
+    <div class="section-heading compact">
+        <h3>Informacion docente</h3>
+        <a class="listing-top-btn" href="{% url 'teacher_profile_setup' %}">Editar perfil</a>
+    </div>
+    <div class="info-grid">
+        <div><span>Correo</span><strong>{{ user_name }}</strong></div>
+        <div><span>Codigo</span><strong>{% if teacher %}{{ teacher.teacher_id|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Nombres</span><strong>{% if teacher %}{{ teacher.first_name|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Apellidos</span><strong>{% if teacher %}{{ teacher.last_name|default:"-" }}{% else %}-{% endif %}</strong></div>
+        <div><span>Programa</span><strong>{% if teacher and teacher.program %}{{ teacher.program }}{% else %}-{% endif %}</strong></div>
+        <div><span>Direccion</span><strong>{% if teacher %}{{ teacher.address|default:"-" }}{% else %}-{% endif %}</strong></div>
+    </div>
+</section>
+{% else %}
+<section class="profile-hero card soft-gradient">
+    <div class="avatar-xl">{{ user_name|slice:":2"|upper }}</div>
+    <div>
+        <p class="eyebrow">Mi perfil</p>
+        <h2>{{ user_name }}</h2>
+        <p>Perfil general del sistema</p>
+    </div>
+</section>
+{% endif %}
 {% endblock %}

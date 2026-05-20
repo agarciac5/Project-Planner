@@ -1,0 +1,118 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Generar Horarios | Uniminuto Planner{% endblock %}
+
+{% block page_class %}page-centered{% endblock %}
+
+{% block content %}
+<div class="login-layout">
+
+    <!-- LADO IZQUIERDO -->
+    <div class="login-copy">
+        <h2>Generador de Horarios</h2>
+        <p>Algoritmo genético para optimización de carga académica.</p>
+
+        <div class="bullet-list">
+            <span>✔ Optimiza disponibilidad docente</span>
+            <span>✔ Evita choques de horarios</span>
+            <span>✔ Minimiza huecos y penalizaciones</span>
+        </div>
+    </div>
+
+    <!-- LADO DERECHO -->
+    <div class="card login-card">
+
+        <h2>Ejecutar algoritmo</h2>
+
+        <!-- MENSAJES -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert-danger">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- FORMULARIO -->
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-grid">
+
+                <div class="field">
+                    <label>Docente</label>
+                    <select name="teacher_id" required>
+                        <option value="">Seleccione un docente</option>
+                        {% for t in teachers %}
+                            <option value="{{ t.id }}">{{ t.first_name }} {{ t.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>Periodo académico</label>
+                    <select name="term_id" required>
+                        <option value="">Seleccione un periodo</option>
+                        {% for term in terms %}
+                            <option value="{{ term.id }}">{{ term.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                Generar horarios
+            </button>
+        </form>
+
+        <!-- RESULTADOS -->
+        {% if top3 %}
+
+            <hr style="margin: 20px 0;">
+
+            <h3 style="margin-bottom: 10px;">Top 3 propuestas</h3>
+
+            {% for schedule in top3 %}
+
+                <div class="card" style="margin-bottom: 12px; padding: 12px;">
+
+                    <h4>Ranking #{{ schedule.rank }} | Fitness: {{ schedule.fitness }}</h4>
+
+                    <p><strong>Horas:</strong> {{ schedule.hours }}</p>
+
+                    <!-- SESIONES -->
+                    <div style="margin-top: 10px;">
+                        {% for s in schedule.sessions %}
+                            <div style="font-size: 14px; margin-bottom: 6px;">
+                                📘 {{ s.course_code }} -
+                                {{ s.day }} {{ s.start_time }} - {{ s.end_time }}
+                                | 🏫 {{ s.classroom }}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- PENALIZACIONES -->
+                    {% if schedule.extra_issues %}
+                        <div style="margin-top: 10px;">
+                            <strong>Observaciones:</strong>
+                            <ul style="margin: 5px 0 0 18px;">
+                                {% for issue in schedule.extra_issues %}
+                                    <li style="color: #ff6b6b;">
+                                        {{ issue }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+        {% endif %}
+
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base/base.html" %}
+{% block title %}Mi Horario Docente{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Mi Horario Docente</h1>
+  <p class="subtitle">Aqui ves los grupos publicados para el periodo activo y los estudiantes asignados a cada uno.</p>
+</div>
+
+{% if active_term %}
+<div class="card">
+  <h2>{{ teacher }}</h2>
+  <p class="subtitle">Periodo activo: {{ active_term.name }} | {{ groups|length }} grupos publicados</p>
+</div>
+
+{% if groups %}
+  {% for group in groups %}
+  <div class="card">
+    <div class="group-header">
+      <div>
+        <h3><code>{{ group.course.code }}</code> {{ group.course.name }}</h3>
+        <p class="subtitle">NRC {{ group.nrc|default:group.id }} | {{ group.enrollments.count }} estudiantes</p>
+      </div>
+    </div>
+
+    <table class="schedule-table">
+      <thead>
+        <tr>
+          <th>Dia</th>
+          <th>Hora</th>
+          <th>Aula</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for session in group.sessions.all %}
+        <tr>
+          <td>{{ session.get_day_display }}</td>
+          <td>{{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}</td>
+          <td>{% if session.classroom %}{{ session.classroom.classroom_id }}{% else %}Virtual{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h4>Estudiantes asignados</h4>
+    {% if group.enrollments.all %}
+    <table class="schedule-table">
+      <thead>
+        <tr>
+          <th>Correo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for enrollment in group.enrollments.all %}
+        <tr>
+          <td>{{ enrollment.student.email }}</td>
+          <td>{{ enrollment.get_status_display }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No hay estudiantes asignados a este grupo.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+<div class="card empty-card">
+  <h3>Sin horario emitido</h3>
+  <p>Todavia no se han publicado grupos para ti en el periodo activo.</p>
+</div>
+{% endif %}
+{% else %}
+<div class="card empty-card">
+  <h3>Sin periodo activo</h3>
+  <p>No hay un periodo academico activo configurado.</p>
+</div>
+{% endif %}
+
+<style>
+.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.4rem;margin-bottom:1.5rem}.group-header{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:1rem}.schedule-table{width:100%;border-collapse:collapse;margin-bottom:1rem}.schedule-table th,.schedule-table td{padding:.7rem;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}.schedule-table th{background:#f8fafc}.empty-card{text-align:center}code{background:#f1f5f9;padding:.15rem .3rem;border-radius:4px}
+</style>
+{% endblock %}

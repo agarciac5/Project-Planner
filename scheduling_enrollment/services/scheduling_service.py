@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 import math
 from datetime import time
 
@@ -551,4 +549,3 @@ def publish_semester_schedule_run(run: SemesterScheduleRun) -> SemesterScheduleR
     run.published_at = timezone.now()
     run.save(update_fields=["status", "published_at"])
     return run
->>>>>>> Stashed changes

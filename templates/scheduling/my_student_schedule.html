@@ -1,0 +1,63 @@
+{% extends "base/base.html" %}
+{% block title %}Mi Horario{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Mi Horario</h1>
+  <p class="subtitle">Aqui ves tu horario emitido para el periodo activo.</p>
+</div>
+
+{% if active_term %}
+<div class="card">
+  <h2>{{ student_profile.full_name|default:student_profile.user.email }}</h2>
+  <p class="subtitle">Periodo activo: {{ active_term.name }} | {{ enrollments|length }} materias emitidas</p>
+</div>
+
+{% if enrollments %}
+<div class="card">
+  <table class="schedule-table">
+    <thead>
+      <tr>
+        <th>Codigo</th>
+        <th>Curso</th>
+        <th>Seccion / NRC</th>
+        <th>Docente</th>
+        <th>Dia</th>
+        <th>Hora</th>
+        <th>Ubicacion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for enrollment in enrollments %}
+        {% for session in enrollment.course_group.sessions.all %}
+        <tr>
+          <td><code>{{ enrollment.course_group.course.code }}</code></td>
+          <td>{{ enrollment.course_group.course.name }}</td>
+          <td>{{ enrollment.course_group.nrc|default:enrollment.course_group.id }}</td>
+          <td>{{ enrollment.course_group.teacher|default:"Pendiente" }}</td>
+          <td>{{ session.get_day_display }}</td>
+          <td>{{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}</td>
+          <td>{% if session.classroom %}{{ session.classroom.classroom_id }}{% else %}Virtual{% endif %}</td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card empty-card">
+  <h3>Sin horario emitido</h3>
+  <p>Todavia no hay un horario publicado para tus materias en el periodo activo.</p>
+</div>
+{% endif %}
+{% else %}
+<div class="card empty-card">
+  <h3>Sin periodo activo</h3>
+  <p>No hay un periodo academico activo configurado.</p>
+</div>
+{% endif %}
+
+<style>
+.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.4rem;margin-bottom:1.5rem}.schedule-table{width:100%;border-collapse:collapse}.schedule-table th,.schedule-table td{padding:.7rem;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}.schedule-table th{background:#f8fafc}.empty-card{text-align:center}code{background:#f1f5f9;padding:.15rem .3rem;border-radius:4px}
+</style>
+{% endblock %}
