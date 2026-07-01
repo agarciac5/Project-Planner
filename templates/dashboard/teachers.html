@@ -5,6 +5,14 @@
 {% block content %}
 <section class="page-section">
     <div class="listing-shell">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
         <div class="listing-header">
             <div class="listing-header-copy">
                 <p class="listing-eyebrow">Gestión académica</p>

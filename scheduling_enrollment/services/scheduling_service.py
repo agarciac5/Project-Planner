@@ -452,6 +452,16 @@ def apply_semester_schedule_run(
         return best_option
 
     term = run.term
+    other_applied_run_exists = SemesterScheduleOption.objects.filter(
+        run__term=term,
+        applied=True,
+    ).exclude(run=run).exists()
+    if other_applied_run_exists:
+        raise ValueError(
+            "Ya existe otro plan aplicado para este periodo. "
+            "Debe revertirse antes de aplicar uno nuevo."
+        )
+
     schedules_by_teacher: dict[int, ProposedSchedule] = {}
 
     for assignment in best_option.assignments.all():
@@ -509,6 +519,11 @@ def apply_semester_schedule_run(
 
 @transaction.atomic
 def revert_semester_schedule_option(option: SemesterScheduleOption) -> SemesterScheduleOption:
+    if option.run.status == "published":
+        raise ValueError(
+            "Un plan publicado no se puede revertir. Debe conservarse como evidencia."
+        )
+
     assignments  = list(option.assignments.select_related("generated_group", "generated_schedule"))
     group_ids    = [a.generated_group_id    for a in assignments if a.generated_group_id]
     schedule_ids = [a.generated_schedule_id for a in assignments if a.generated_schedule_id]

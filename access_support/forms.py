@@ -218,6 +218,21 @@ class UserRoleAssignmentForm(forms.Form):
         widget=forms.Select(attrs={"class": "search-input"}),
     )
 
+    def __init__(self, *args, actor=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.actor = actor
+        actor_can_manage_coordinators = bool(
+            actor
+            and actor.is_authenticated
+            and (actor.is_superuser or actor.role == "coordinator")
+        )
+        if not actor_can_manage_coordinators and not self.is_bound:
+            self.fields["role"].choices = [
+                choice
+                for choice in User.ROLE_CHOICES
+                if choice[0] != "coordinator"
+            ]
+
     def clean_user_id(self):
         user_id = self.cleaned_data["user_id"]
         try:
@@ -228,6 +243,18 @@ class UserRoleAssignmentForm(forms.Form):
             raise forms.ValidationError(
                 "Solo se pueden gestionar cuentas institucionales (@uniminuto.edu.co)."
             )
+        if user.is_superuser and not getattr(self.actor, "is_superuser", False):
+            raise forms.ValidationError(
+                "Solo otro superusuario puede modificar esta cuenta."
+            )
+        if (
+            user.role == "coordinator"
+            and not getattr(self.actor, "is_superuser", False)
+            and getattr(self.actor, "role", None) != "coordinator"
+        ):
+            raise forms.ValidationError(
+                "Solo un director academico puede modificar a otro director."
+            )
         return user
 
     def clean_role(self):
@@ -235,6 +262,14 @@ class UserRoleAssignmentForm(forms.Form):
         allowed_roles = {value for value, _ in User.ROLE_CHOICES}
         if role not in allowed_roles:
             raise forms.ValidationError("Selecciona un rol valido.")
+        if (
+            role == "coordinator"
+            and not getattr(self.actor, "is_superuser", False)
+            and getattr(self.actor, "role", None) != "coordinator"
+        ):
+            raise forms.ValidationError(
+                "Solo un director academico puede asignar el rol de director."
+            )
         return role
 
     def get_user(self):

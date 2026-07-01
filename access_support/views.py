@@ -8,6 +8,8 @@ import pandas as pd
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -344,7 +346,7 @@ def _institutional_users():
     return User.objects.filter(email__iendswith=INSTITUTIONAL_EMAIL_DOMAIN).order_by("email")
 
 
-def _role_assignment_rows(users, search_term):
+def _role_assignment_rows(users, search_term, actor):
     rows = []
     for user in users:
         has_teacher_profile = bool(_teacher_profile_for_user(user))
@@ -355,6 +357,7 @@ def _role_assignment_rows(users, search_term):
                 "has_teacher_profile": has_teacher_profile,
                 "has_student_profile": has_student_profile,
                 "form": UserRoleAssignmentForm(
+                    actor=actor,
                     initial={
                         "user_id": user.id,
                         "role": user.role,
@@ -373,7 +376,7 @@ def assign_roles_view(request):
     searched = False
 
     if request.method == "POST":
-        assignment_form = UserRoleAssignmentForm(request.POST)
+        assignment_form = UserRoleAssignmentForm(request.POST, actor=request.user)
         search_form = UserRoleSearchForm(initial={"email_query": request.POST.get("search", "")})
 
         if assignment_form.is_valid():
@@ -434,7 +437,7 @@ def assign_roles_view(request):
     context.update(
         {
             "search_form": search_form,
-            "rows": _role_assignment_rows(users, query),
+            "rows": _role_assignment_rows(users, query, request.user),
             "searched": searched,
             "search_term": query,
         }
@@ -719,6 +722,13 @@ def register_view(request):
         if User.objects.filter(email=email).exists():
             messages.error(request, "El correo ya esta registrado")
             return redirect("register")
+
+        try:
+            validate_password(password, user=User(email=email, role="student"))
+        except ValidationError as exc:
+            for error in exc.messages:
+                messages.error(request, error)
+            return render(request, "access_support/register.html")
 
         user = User.objects.create_user(email=email, password=password, role="student")
         login(request, user)

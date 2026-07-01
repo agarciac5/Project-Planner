@@ -40,6 +40,20 @@ class RegisterViewTest(TestCase):
         self.assertFalse(User.objects.filter(email="ana@gmail.com").exists())
         self.assertContains(response, "Solo se permiten correos institucionales")
 
+    def test_register_rejects_weak_password(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "email": "ana@uniminuto.edu.co",
+                "password": "12345",
+                "confirm": "12345",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="ana@uniminuto.edu.co").exists())
+        self.assertContains(response, "too short")
+
 
 class LoginViewTest(TestCase):
     def setUp(self):
@@ -247,8 +261,33 @@ class AssignRolesViewTest(TestCase):
         self.assertContains(response, "ana.perez@uniminuto.edu.co")
         self.assertNotContains(response, "luis.gomez@uniminuto.edu.co")
 
-    def test_admin_can_assign_any_role_including_coordinator(self):
+    def test_admin_cannot_assign_coordinator_role(self):
         self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse("assign_roles"),
+            {
+                "user_id": self.target_user.id,
+                "role": "coordinator",
+                "search": "ana.perez",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.target_user.refresh_from_db()
+        self.assertEqual(self.target_user.role, "student")
+        self.assertContains(
+            response,
+            "Solo un director academico puede asignar el rol de director",
+        )
+
+    def test_coordinator_can_assign_coordinator_role(self):
+        coordinator_user = User.objects.create_user(
+            email="director.roles@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="coordinator",
+        )
+        self.client.force_login(coordinator_user)
 
         response = self.client.post(
             reverse("assign_roles"),
@@ -265,6 +304,31 @@ class AssignRolesViewTest(TestCase):
         )
         self.target_user.refresh_from_db()
         self.assertEqual(self.target_user.role, "coordinator")
+
+    def test_admin_cannot_modify_existing_coordinator(self):
+        coordinator_user = User.objects.create_user(
+            email="director.protected@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="coordinator",
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse("assign_roles"),
+            {
+                "user_id": coordinator_user.id,
+                "role": "student",
+                "search": "director.protected",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        coordinator_user.refresh_from_db()
+        self.assertEqual(coordinator_user.role, "coordinator")
+        self.assertContains(
+            response,
+            "Solo un director academico puede modificar a otro director",
+        )
 
     def test_assigning_teacher_role_creates_teacher_profile(self):
         self.client.force_login(self.admin_user)

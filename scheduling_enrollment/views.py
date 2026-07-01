@@ -2,7 +2,13 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db import models
 from django.contrib.auth.decorators import login_required
-from access_support.role_access import SCHEDULE_MANAGEMENT_ROLES, SCHEDULE_READ_ROLES, roles_required, user_has_any_role
+from access_support.role_access import (
+    DIRECTOR_ROLES,
+    SCHEDULE_MANAGEMENT_ROLES,
+    SCHEDULE_READ_ROLES,
+    roles_required,
+    user_has_any_role,
+)
 
 from access_support.models import StudentProfile
 from teaching.models import Teacher
@@ -653,7 +659,10 @@ def enrollment_view(request):
         return redirect("home")
 
     if request.method == "POST":
-        course = get_object_or_404(Course, id=request.POST.get("course_id"))
+        course = get_object_or_404(
+            get_student_available_courses(student_profile),
+            id=request.POST.get("course_id"),
+        )
         enrollment, outcome = request_student_enrollment(request.user, course, active_term)
         if outcome == "existing":
             if enrollment.status == "enrolled":
@@ -1062,7 +1071,11 @@ def apply_semester_option_view(request, option_id):
         if option.run.options.exclude(id=option.id).filter(applied=True).exists():
             messages.warning(request, "Ya existe otra opcion aplicada en este plan. Revierte esa aplicacion antes de aplicar una nueva.")
             return redirect("saved_semester_run_detail", run_id=option.run.id)
-        apply_semester_schedule_run(option.run, option=option)
+        try:
+            apply_semester_schedule_run(option.run, option=option)
+        except ValueError as exc:
+            messages.warning(request, str(exc))
+            return redirect("saved_semester_run_detail", run_id=option.run.id)
         option.run.refresh_from_db()
         if option.run.status == "ready_to_publish":
             messages.success(request, "La opcion seleccionada fue aplicada. Los horarios estan listos para ser emitidos.")
@@ -1071,19 +1084,22 @@ def apply_semester_option_view(request, option_id):
     return redirect("saved_semester_run_detail", run_id=option.run.id)
 
 
-@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
+@roles_required(*DIRECTOR_ROLES)
 def revert_semester_option_view(request, option_id):
     option = get_object_or_404(
         SemesterScheduleOption.objects.select_related("run"),
         id=option_id,
     )
     if request.method == "POST":
-        revert_semester_schedule_option(option)
-        messages.success(request, "La aplicacion de la opcion fue revertida y los grupos creados fueron eliminados.")
+        try:
+            revert_semester_schedule_option(option)
+            messages.success(request, "La aplicacion de la opcion fue revertida y los grupos creados fueron eliminados.")
+        except ValueError as exc:
+            messages.warning(request, str(exc))
     return redirect("saved_semester_run_detail", run_id=option.run.id)
 
 
-@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
+@roles_required(*DIRECTOR_ROLES)
 def publish_semester_run_view(request, run_id):
     run = get_object_or_404(SemesterScheduleRun, id=run_id)
     if request.method == "POST":
@@ -1095,10 +1111,16 @@ def publish_semester_run_view(request, run_id):
     return redirect("saved_semester_run_detail", run_id=run.id)
 
 
-@roles_required(*SCHEDULE_MANAGEMENT_ROLES)
+@roles_required(*DIRECTOR_ROLES)
 def delete_semester_run_view(request, run_id):
     run = get_object_or_404(SemesterScheduleRun, id=run_id)
     if request.method == "POST":
+        if run.status == "published":
+            messages.warning(
+                request,
+                "Un plan publicado no se puede eliminar. Debe conservarse como evidencia.",
+            )
+            return redirect("saved_semester_run_detail", run_id=run.id)
         applied_option = run.options.filter(applied=True).first()
         if applied_option:
             revert_semester_schedule_option(applied_option)

@@ -16,6 +16,17 @@ class CourseGroup(models.Model):
     class Meta:
         verbose_name = "Grupo de horario"
         verbose_name_plural = "Grupos de horario"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["term", "nrc"],
+                condition=~models.Q(nrc=""),
+                name="unique_nrc_per_term",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(capacity__gt=0),
+                name="schedule_group_capacity_positive",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.course.code} - NRC {self.nrc}"
@@ -49,6 +60,23 @@ class TeacherActivity(models.Model):
     class Meta:
         verbose_name = "Actividad docente"
         verbose_name_plural = "Actividades docentes"
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "teacher",
+                    "term",
+                    "activity_type",
+                    "day",
+                    "start_time",
+                    "end_time",
+                ],
+                name="unique_teacher_activity_slot",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(end_time__gt=models.F("start_time")),
+                name="teacher_activity_end_after_start",
+            ),
+        ]
 
     @property
     def duration_hours(self):
@@ -105,6 +133,18 @@ class ScheduleSession(models.Model):
     start_time = models.TimeField()
     end_time = models.TimeField()
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["schedule", "group", "day", "start_time", "end_time"],
+                name="unique_schedule_session",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(end_time__gt=models.F("start_time")),
+                name="schedule_session_end_after_start",
+            ),
+        ]
+
     def __str__(self):
         return f"{self.group} - {self.day} {self.start_time}-{self.end_time}"
 
@@ -132,6 +172,14 @@ class EnrollmentQueue(models.Model):
         choices=[("waiting", "Waiting"), ("enrolled", "Enrolled")],
         default="waiting",
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "course", "term"],
+                name="unique_enrollment_request_per_term",
+            )
+        ]
 
     def __str__(self):
         return f"{self.student} waiting for {self.course}"
@@ -180,6 +228,18 @@ class SemesterScheduleOption(models.Model):
     class Meta:
         ordering = ["rank", "-score"]
         unique_together = ("run", "rank")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run"],
+                condition=models.Q(selected=True),
+                name="one_selected_option_per_run",
+            ),
+            models.UniqueConstraint(
+                fields=["run"],
+                condition=models.Q(applied=True),
+                name="one_applied_option_per_run",
+            ),
+        ]
 
     def __str__(self):
         return f"Opcion {self.rank} - {self.run.term} ({self.score:.2f})"
@@ -228,6 +288,21 @@ class SemesterScheduleAssignment(models.Model):
 
     class Meta:
         ordering = ["course__code", "section_number"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_time__gt=models.F("start_time")),
+                name="assignment_end_after_start",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(capacity__gt=0),
+                name="assignment_capacity_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(students_assigned__gte=0)
+                & models.Q(students_assigned__lte=models.F("capacity")),
+                name="assignment_students_within_capacity",
+            ),
+        ]
 
     def __str__(self):
         return (

@@ -1,3 +1,5 @@
+from datetime import time
+
 from django.test import TestCase
 from django.urls import reverse
 
@@ -59,6 +61,33 @@ class TeacherViewTest(TestCase):
 
         self.assertRedirects(response, reverse("teacher_list"))
         self.assertFalse(Availability.objects.filter(teacher=teacher).exists())
+
+    def test_add_availability_rejects_overlapping_slot(self):
+        teacher = Teacher.objects.create(
+            teacher_id="DOC-OVERLAP",
+            first_name="Ana",
+            last_name="Ruiz",
+        )
+        Availability.objects.create(
+            teacher=teacher,
+            day="Monday",
+            start_time=time(8, 0),
+            end_time=time(10, 0),
+        )
+
+        response = self.client.post(
+            reverse("add_availability", args=[teacher.id]),
+            {
+                "day": "Monday",
+                "start_time": "09:00",
+                "end_time": "11:00",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Availability.objects.filter(teacher=teacher).count(), 1)
+        self.assertContains(response, "se cruza con otra franja")
 
     def test_teacher_edit_updates_teacher_fields(self):
         teacher = Teacher.objects.create(

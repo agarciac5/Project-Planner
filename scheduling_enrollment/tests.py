@@ -2,6 +2,7 @@ import random
 from datetime import date, time
 
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
@@ -22,6 +23,7 @@ from scheduling_enrollment.services.enrollment_service import request_student_en
 from scheduling_enrollment.services.scheduling_service import (
     generate_semester_schedule_options,
     get_run_assignment_summary,
+    revert_semester_schedule_option,
 )
 from teaching.models import Availability, ContractRule, Teacher
 
@@ -214,6 +216,56 @@ class SemesterPlannerServiceTests(TestCase):
         self.assertEqual(len(summary["pending_by_student"]), 1)
         self.assertEqual(summary["pending_by_student"][0]["student_email"], "late@test.com")
 
+    def test_published_option_cannot_be_reverted(self):
+        run = SemesterScheduleRun.objects.create(
+            term=self.term,
+            status="published",
+        )
+        option = SemesterScheduleOption.objects.create(
+            run=run,
+            rank=1,
+            applied=True,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Un plan publicado no se puede revertir",
+        ):
+            revert_semester_schedule_option(option)
+
+    def test_only_one_option_per_run_can_be_selected(self):
+        run = SemesterScheduleRun.objects.create(term=self.term)
+        SemesterScheduleOption.objects.create(
+            run=run,
+            rank=1,
+            selected=True,
+        )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            SemesterScheduleOption.objects.create(
+                run=run,
+                rank=2,
+                selected=True,
+            )
+
+    def test_nrc_must_be_unique_within_term(self):
+        CourseGroup.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            term=self.term,
+            nrc="12345",
+            capacity=20,
+        )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            CourseGroup.objects.create(
+                course=self.course,
+                teacher=self.teacher,
+                term=self.term,
+                nrc="12345",
+                capacity=20,
+            )
+
 
 class EnrollmentViewTest(TestCase):
     def setUp(self):
@@ -296,6 +348,100 @@ class EnrollmentViewTest(TestCase):
             ).count(),
             1,
         )
+
+    def test_database_rejects_duplicate_enrollment_request(self):
+        EnrollmentQueue.objects.create(
+            student=self.student,
+            course=self.course,
+            term=self.term,
+            status="waiting",
+        )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            EnrollmentQueue.objects.create(
+                student=self.student,
+                course=self.course,
+                term=self.term,
+                status="waiting",
+            )
+
+    def test_enrollment_view_rejects_course_outside_student_study_plan(self):
+        other_program = AcademicProgram.objects.create(
+            name="Industrial",
+            code="IND",
+            faculty=self.faculty,
+            campus=self.campus,
+        )
+        other_plan = StudyPlan.objects.create(program=other_program, version="2026")
+        unauthorized_course = Course.objects.create(
+            name="Procesos",
+            code="IND101",
+            credits=3,
+            semester=1,
+            study_plan=other_plan,
+        )
+        self.client.force_login(self.student)
+
+        response = self.client.post(
+            reverse("enrollment"),
+            {"course_id": unauthorized_course.id},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(
+            EnrollmentQueue.objects.filter(
+                student=self.student,
+                course=unauthorized_course,
+                term=self.term,
+            ).exists()
+        )
+
+    def test_admin_cannot_publish_semester_plan(self):
+        admin_user = get_user_model().objects.create_user(
+            email="admin-schedule@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="admin",
+        )
+        run = SemesterScheduleRun.objects.create(
+            term=self.term,
+            status="ready_to_publish",
+        )
+        SemesterScheduleOption.objects.create(
+            run=run,
+            rank=1,
+            applied=True,
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.post(
+            reverse("publish_semester_run", args=[run.id]),
+        )
+
+        self.assertRedirects(response, reverse("home"))
+        run.refresh_from_db()
+        self.assertEqual(run.status, "ready_to_publish")
+
+    def test_coordinator_cannot_delete_published_semester_plan(self):
+        coordinator = get_user_model().objects.create_user(
+            email="director-schedule@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="coordinator",
+        )
+        run = SemesterScheduleRun.objects.create(
+            term=self.term,
+            status="published",
+        )
+        self.client.force_login(coordinator)
+
+        response = self.client.post(
+            reverse("delete_semester_run", args=[run.id]),
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("saved_semester_run_detail", args=[run.id]),
+        )
+        self.assertTrue(SemesterScheduleRun.objects.filter(id=run.id).exists())
 
 
 class PersonalScheduleViewTest(TestCase):
