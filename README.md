@@ -44,6 +44,8 @@ python manage.py create_demo_role_accounts
 
 Este comando prepara cuentas y datos ficticios. Consulte
 `docs/guion_demo_uniminuto.md` para el recorrido de presentación.
+La instalación completa y las pruebas manuales están explicadas en
+`docs/guia_instalacion_y_pruebas.md`.
 
 Con `DJANGO_DEBUG=False` se deben definir una clave segura en
 `DJANGO_SECRET_KEY` y los dominios permitidos en `DJANGO_ALLOWED_HOSTS`.
