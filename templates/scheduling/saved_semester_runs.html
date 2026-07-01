@@ -20,6 +20,9 @@
     <h3>{{ run.term.name }}</h3>
     <p><strong>Estado:</strong> {{ run.get_status_display }}</p>
     <p><strong>Generado:</strong> {{ run.created_at|date:"Y-m-d H:i" }}</p>
+    {% if run.random_seed %}
+    <p><strong>Semilla reproducible:</strong> {{ run.random_seed }}</p>
+    {% endif %}
     {% if run.status == "ready_to_publish" %}
     <p class="status-ready">Los horarios estan listos para ser emitidos.</p>
     {% elif run.status == "published" and run.published_at %}

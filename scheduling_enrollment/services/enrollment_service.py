@@ -172,14 +172,10 @@ def summarize_pending_requests(term, option: SemesterScheduleOption | None = Non
 
 @transaction.atomic
 def request_student_enrollment(student, course, term):
-    existing = EnrollmentQueue.objects.filter(student=student, course=course, term=term).first()
-    if existing:
-        return existing, "existing"
-
-    enrollment = EnrollmentQueue.objects.create(
+    enrollment, created = EnrollmentQueue.objects.get_or_create(
         student=student,
         course=course,
         term=term,
-        status="waiting",
+        defaults={"status": "waiting"},
     )
-    return enrollment, "waiting"
+    return enrollment, "waiting" if created else "existing"

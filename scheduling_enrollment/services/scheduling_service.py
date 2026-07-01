@@ -1,4 +1,6 @@
 import math
+import random
+import secrets
 from datetime import time
 
 from django.db import transaction
@@ -92,7 +94,9 @@ def _build_demand_courses(term: AcademicTerm, course_ids: set[int] | None = None
         waiting = waiting.filter(course__in=course_ids)
     courses = {
         course.id: course
-        for course in Course.objects.filter(id__in=[item["course"] for item in waiting])
+        for course in Course.objects.filter(
+            id__in=[item["course"] for item in waiting]
+        ).select_related("study_plan__program")
     }
 
     demand_courses = []
@@ -111,6 +115,7 @@ def _build_demand_courses(term: AcademicTerm, course_ids: set[int] | None = None
                 demand=demand,
                 min_sections=min_sections,
                 max_sections=max_sections,
+                campus_id=course.study_plan.program.campus_id,
             )
         )
     return demand_courses
@@ -357,11 +362,11 @@ def get_run_assignment_summary(run: SemesterScheduleRun) -> dict:
     }
 
 
-@transaction.atomic
 def generate_semester_schedule_options(
     term_id: int,
     auto_apply_best: bool = False,
     course_ids: set[int] | None = None,
+    random_seed: int | None = None,
 ) -> SemesterScheduleRun | None:
     term = _get_term(term_id)
     demand_courses = _build_demand_courses(term, course_ids=course_ids)
@@ -383,12 +388,18 @@ def generate_semester_schedule_options(
     if not schedulable_courses:
         return None
 
-    results = run_semester_planner(
-        demand_courses=schedulable_courses,
-        teachers=teacher_resources,
-        classrooms=classroom_resources,
-        timeslots=timeslots,
-    )
+    random_seed = random_seed if random_seed is not None else secrets.randbits(63)
+    previous_random_state = random.getstate()
+    random.seed(random_seed)
+    try:
+        results = run_semester_planner(
+            demand_courses=schedulable_courses,
+            teachers=teacher_resources,
+            classrooms=classroom_resources,
+            timeslots=timeslots,
+        )
+    finally:
+        random.setstate(previous_random_state)
     if not results:
         return None
 
@@ -397,39 +408,48 @@ def generate_semester_schedule_options(
     course_map    = {course.id: course       for course in Course.objects.filter(id__in=[c.course_id for c in schedulable_courses])}
     timeslot_map  = {slot.index: slot        for slot in timeslots}
 
-    run = SemesterScheduleRun.objects.create(term=term)
-    for rank, result in enumerate(results, start=1):
-        result.summary["unschedulable_courses"]       = unschedulable_courses
-        result.summary["unschedulable_course_count"]  = len(unschedulable_courses)
-        result.summary["unschedulable_demand"]        = unschedulable_demand
-        result.summary["schedulable_demand_total"]    = result.summary["demand_total"]
-        result.summary["demand_total"]                = total_demand
-        result.summary["uncovered_students"]         += unschedulable_demand
-        option = SemesterScheduleOption.objects.create(
-            run=run,
-            rank=rank,
-            score=result.score,
-            demand_covered=result.summary["demand_covered"],
-            demand_total=total_demand,
-            sections_opened=result.summary["sections_opened"],
-            is_best=rank == 1,
-            selected=False,
-            summary=result.summary,
+    with transaction.atomic():
+        run = SemesterScheduleRun.objects.create(
+            term=term,
+            random_seed=random_seed,
         )
-        for assignment in result.assignments:
-            slot = timeslot_map[assignment.timeslot_index]
-            SemesterScheduleAssignment.objects.create(
-                option=option,
-                course=course_map[assignment.course_id],
-                teacher=teacher_map.get(assignment.teacher_id),
-                classroom=classroom_map.get(assignment.classroom_id),
-                section_number=assignment.section_number,
-                day=slot.day,
-                start_time=slot.start_time,
-                end_time=slot.end_time,
-                students_assigned=assignment.students_assigned,
-                capacity=assignment.capacity,
+        for rank, result in enumerate(results, start=1):
+            result.summary["unschedulable_courses"] = unschedulable_courses
+            result.summary["unschedulable_course_count"] = len(
+                unschedulable_courses
             )
+            result.summary["unschedulable_demand"] = unschedulable_demand
+            result.summary["schedulable_demand_total"] = result.summary[
+                "demand_total"
+            ]
+            result.summary["demand_total"] = total_demand
+            result.summary["uncovered_students"] += unschedulable_demand
+            result.summary["random_seed"] = random_seed
+            option = SemesterScheduleOption.objects.create(
+                run=run,
+                rank=rank,
+                score=result.score,
+                demand_covered=result.summary["demand_covered"],
+                demand_total=total_demand,
+                sections_opened=result.summary["sections_opened"],
+                is_best=rank == 1,
+                selected=False,
+                summary=result.summary,
+            )
+            for assignment in result.assignments:
+                slot = timeslot_map[assignment.timeslot_index]
+                SemesterScheduleAssignment.objects.create(
+                    option=option,
+                    course=course_map[assignment.course_id],
+                    teacher=teacher_map.get(assignment.teacher_id),
+                    classroom=classroom_map.get(assignment.classroom_id),
+                    section_number=assignment.section_number,
+                    day=slot.day,
+                    start_time=slot.start_time,
+                    end_time=slot.end_time,
+                    students_assigned=assignment.students_assigned,
+                    capacity=assignment.capacity,
+                )
 
     if auto_apply_best:
         apply_semester_schedule_run(run)

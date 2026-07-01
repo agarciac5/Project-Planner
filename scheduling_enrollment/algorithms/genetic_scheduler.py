@@ -26,6 +26,7 @@ class DemandCourse:
     demand: int
     min_sections: int
     max_sections: int
+    campus_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -117,10 +118,16 @@ def _build_feasible_candidates(
     """
     candidates: dict[int, list[tuple[int, int, int]]] = {}
     classroom_ids = list(classrooms.keys())
-    for course_id in demand_courses:
+    for course_id, course in demand_courses.items():
         course_candidates = []
         for teacher in teachers.values():
             if course_id not in teacher.qualified_course_ids:
+                continue
+            if (
+                course.campus_id
+                and teacher.campus_id
+                and course.campus_id != teacher.campus_id
+            ):
                 continue
             for slot in timeslots.values():
                 if not _slot_within_availability(slot, teacher):
@@ -128,6 +135,19 @@ def _build_feasible_candidates(
                 if _slot_overlaps_activity(slot, teacher):
                     continue
                 for classroom_id in classroom_ids:
+                    classroom = classrooms[classroom_id]
+                    if (
+                        course.campus_id
+                        and classroom.campus_id
+                        and course.campus_id != classroom.campus_id
+                    ):
+                        continue
+                    if (
+                        teacher.campus_id
+                        and classroom.campus_id
+                        and teacher.campus_id != classroom.campus_id
+                    ):
+                        continue
                     course_candidates.append((teacher.teacher_id, classroom_id, slot.index))
         candidates[course_id] = course_candidates
     return candidates
@@ -244,16 +264,22 @@ def evaluate_semester_schedule(
     classroom_slots: dict[int, set[int]] = {}
     teacher_hours:   dict[int, float]    = {}
 
+    assigned_by_course: dict[int, int] = {}
+    for assignment in assignments:
+        assigned_by_course[assignment.course_id] = (
+            assigned_by_course.get(assignment.course_id, 0)
+            + assignment.students_assigned
+        )
+
     for course_id, course in demand_courses.items():
         open_count = len(open_indexes_by_course.get(course_id, []))
-        if course.demand >= 5 and open_count == 0:
-            summary["uncovered_students"] += course.demand
-            penalties["uncovered_demand"] += 25
-            score -= 25
-        if open_count < course.min_sections:
-            uncovered_capacity = (course.min_sections - open_count) * 20
-            uncovered = min(course.demand, uncovered_capacity)
-            penalty = 15 + uncovered * 0.8
+        covered_for_course = min(
+            course.demand,
+            assigned_by_course.get(course_id, 0),
+        )
+        uncovered = max(0, course.demand - covered_for_course)
+        if uncovered:
+            penalty = (25 if open_count == 0 else 15) + uncovered * 0.8
             summary["uncovered_students"] += uncovered
             penalties["uncovered_demand"] += penalty
             score -= penalty
@@ -343,7 +369,10 @@ def evaluate_semester_schedule(
             penalties["under_min_hours"] += penalty
             score -= penalty
 
-    covered     = sum(a.students_assigned for a in assignments)
+    covered = sum(
+        min(course.demand, assigned_by_course.get(course_id, 0))
+        for course_id, course in demand_courses.items()
+    )
     total_demand = sum(course.demand for course in demand_courses.values())
     summary["demand_covered"]  = covered
     summary["demand_total"]    = total_demand

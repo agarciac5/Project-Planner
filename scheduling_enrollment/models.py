@@ -199,6 +199,7 @@ class SemesterScheduleRun(models.Model):
         related_name="semester_schedule_runs",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    random_seed = models.PositiveBigIntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
     published_at = models.DateTimeField(null=True, blank=True)
 
