@@ -1,12 +1,17 @@
-# Team Members
+# Project Planner
 
-| Name                              | Role               | Mail                     |
-|-----------------------------------|--------------------|--------------------------|
-| Carlos David Sanchez Soto         | Tester             | cdsanchezs@eafit.edu.co  |
-| Alejandro Garcia Cortes           | Developer          | agarciac5@eafit.edu.co   |
-| Dorian Alejandro Guisao Ospina    | Scrum Master       | daguisaoo@eafit.edu.co   |
-| Juan Esteban Orrego Gomez         | Software Architect | jeorregog1@eafit.edu.co  |
-| Sebastian Rodriguez               | Tester             | srodrigub1@eafit.edu.co  |
+Sistema Django para matrícula, planificación semestral y publicación de
+horarios académicos con separación por roles e integridad de datos.
+
+## Equipo
+
+| Nombre | Rol | Correo |
+|---|---|---|
+| Carlos David Sanchez Soto | Tester | cdsanchezs@eafit.edu.co |
+| Alejandro Garcia Cortes | Developer | agarciac5@eafit.edu.co |
+| Dorian Alejandro Guisao Ospina | Scrum Master | daguisaoo@eafit.edu.co |
+| Juan Esteban Orrego Gomez | Software Architect | jeorregog1@eafit.edu.co |
+| Sebastian Rodriguez | Tester | srodrigub1@eafit.edu.co |
 
 ## Ejecución local
 
@@ -21,25 +26,24 @@ python manage.py runserver
 ```
 
 La configuración se obtiene de variables de entorno. Use `.env.example` como
-referencia; Django no carga archivos `.env` automáticamente.
+referencia; Django no carga ese archivo automáticamente.
 
-## Comprobaciones antes de auditar
+## Comprobaciones
 
 ```powershell
 python manage.py check
-python manage.py makemigrations --check --dry-run
-python manage.py test -v 2
+python manage.py makemigrations --check
+python manage.py test
 ```
 
-Para validar una configuración de producción:
+## Demostración local
 
 ```powershell
-$env:DJANGO_DEBUG = "False"
-$env:DJANGO_SECRET_KEY = "una-clave-secreta-larga-y-aleatoria"
-$env:DJANGO_ALLOWED_HOSTS = "planner.example.edu"
-$env:DJANGO_CSRF_TRUSTED_ORIGINS = "https://planner.example.edu"
-python manage.py check --deploy
+python manage.py create_demo_role_accounts
 ```
 
-En producción no se permite iniciar la aplicación sin `DJANGO_SECRET_KEY` y
-`DJANGO_ALLOWED_HOSTS`.
+Este comando prepara cuentas y datos ficticios. Consulte
+`docs/guion_demo_uniminuto.md` para el recorrido de presentación.
+
+Con `DJANGO_DEBUG=False` se deben definir una clave segura en
+`DJANGO_SECRET_KEY` y los dominios permitidos en `DJANGO_ALLOWED_HOSTS`.

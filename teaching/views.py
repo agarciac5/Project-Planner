@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.dateparse import parse_time
+from django.views.decorators.http import require_POST
 
 from access_support.forms import TeacherForm
 from access_support.models import User
@@ -120,6 +121,7 @@ def teacher_edit_view(request, teacher_id):
 
 
 @roles_required(*ACADEMIC_MANAGEMENT_ROLES)
+@require_POST
 def teacher_delete_view(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
     teacher.delete()

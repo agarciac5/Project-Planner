@@ -1,8 +1,7 @@
 import math
-import random
-import secrets
 from datetime import time
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -366,13 +365,20 @@ def generate_semester_schedule_options(
     term_id: int,
     auto_apply_best: bool = False,
     course_ids: set[int] | None = None,
-    random_seed: int | None = None,
 ) -> SemesterScheduleRun | None:
     term = _get_term(term_id)
     demand_courses = _build_demand_courses(term, course_ids=course_ids)
     if not demand_courses:
         return None
     total_demand = sum(course.demand for course in demand_courses)
+    if len(demand_courses) > settings.SCHEDULE_MAX_COURSES:
+        raise ValueError(
+            "La cantidad de materias supera el limite operativo configurado."
+        )
+    if total_demand > settings.SCHEDULE_MAX_DEMAND:
+        raise ValueError(
+            "La demanda supera el limite operativo configurado."
+        )
 
     teacher_resources   = _build_teacher_resources(
         term, demanded_course_ids={course.course_id for course in demand_courses},
@@ -388,18 +394,15 @@ def generate_semester_schedule_options(
     if not schedulable_courses:
         return None
 
-    random_seed = random_seed if random_seed is not None else secrets.randbits(63)
-    previous_random_state = random.getstate()
-    random.seed(random_seed)
-    try:
-        results = run_semester_planner(
-            demand_courses=schedulable_courses,
-            teachers=teacher_resources,
-            classrooms=classroom_resources,
-            timeslots=timeslots,
-        )
-    finally:
-        random.setstate(previous_random_state)
+    results = run_semester_planner(
+        demand_courses=schedulable_courses,
+        teachers=teacher_resources,
+        classrooms=classroom_resources,
+        timeslots=timeslots,
+        population_size=settings.SCHEDULE_POPULATION_SIZE,
+        generations=settings.SCHEDULE_GENERATIONS,
+        options_limit=settings.SCHEDULE_OPTIONS_LIMIT,
+    )
     if not results:
         return None
 
@@ -409,10 +412,7 @@ def generate_semester_schedule_options(
     timeslot_map  = {slot.index: slot        for slot in timeslots}
 
     with transaction.atomic():
-        run = SemesterScheduleRun.objects.create(
-            term=term,
-            random_seed=random_seed,
-        )
+        run = SemesterScheduleRun.objects.create(term=term)
         for rank, result in enumerate(results, start=1):
             result.summary["unschedulable_courses"] = unschedulable_courses
             result.summary["unschedulable_course_count"] = len(
@@ -424,7 +424,11 @@ def generate_semester_schedule_options(
             ]
             result.summary["demand_total"] = total_demand
             result.summary["uncovered_students"] += unschedulable_demand
-            result.summary["random_seed"] = random_seed
+            result.summary["planner_parameters"] = {
+                "population_size": settings.SCHEDULE_POPULATION_SIZE,
+                "generations": settings.SCHEDULE_GENERATIONS,
+                "options_limit": settings.SCHEDULE_OPTIONS_LIMIT,
+            }
             option = SemesterScheduleOption.objects.create(
                 run=run,
                 rank=rank,

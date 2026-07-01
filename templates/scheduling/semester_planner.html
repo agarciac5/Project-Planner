@@ -50,7 +50,6 @@
     <h2>Resultado para {{ run.term.name }}</h2>
     <p class="subtitle">
       Estado del plan: {{ run.get_status_display }}
-      {% if run.random_seed %}· Semilla: {{ run.random_seed }}{% endif %}
     </p>
   </div>
   <div class="results-actions">

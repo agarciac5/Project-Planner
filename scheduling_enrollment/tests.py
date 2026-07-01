@@ -198,13 +198,11 @@ class SemesterPlannerServiceTests(TestCase):
         run = generate_semester_schedule_options(
             self.term.id,
             auto_apply_best=True,
-            random_seed=7,
         )
 
         self.assertIsNotNone(run)
         self.assertEqual(run.status, "ready_to_publish")
         self.assertGreaterEqual(run.options.count(), 1)
-        self.assertEqual(run.random_seed, 7)
 
         best_option = run.options.get(is_best=True)
         self.assertTrue(best_option.applied)
@@ -240,7 +238,6 @@ class SemesterPlannerServiceTests(TestCase):
         run = generate_semester_schedule_options(
             self.term.id,
             auto_apply_best=False,
-            random_seed=7,
         )
 
         self.assertIsNotNone(run)
@@ -276,7 +273,6 @@ class SemesterPlannerServiceTests(TestCase):
         run = generate_semester_schedule_options(
             self.term.id,
             auto_apply_best=True,
-            random_seed=7,
         )
         summary = get_run_assignment_summary(run)
 
@@ -293,7 +289,6 @@ class SemesterPlannerServiceTests(TestCase):
         run = generate_semester_schedule_options(
             self.term.id,
             auto_apply_best=True,
-            random_seed=7,
         )
         late_student = self.user_model.objects.create_user(
             email="late@test.com",

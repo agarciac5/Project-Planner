@@ -26,9 +26,9 @@
 
         <!-- ERRORES DEL FORM -->
         {% if form.errors %}
-            <div class="alert-danger">
-                Credenciales incorrectas
-            </div>
+            {% for error in form.non_field_errors %}
+                <div class="alert-danger">{{ error }}</div>
+            {% endfor %}
         {% endif %}
 
         <form method="POST">

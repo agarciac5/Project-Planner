@@ -990,7 +990,14 @@ def semester_planner_view(request):
         )
         return render(request, "scheduling/semester_planner.html", context)
 
-    run = generate_semester_schedule_options(term_id=int(term_id), auto_apply_best=False)
+    try:
+        run = generate_semester_schedule_options(
+            term_id=int(term_id),
+            auto_apply_best=False,
+        )
+    except ValueError as exc:
+        messages.warning(request, str(exc))
+        return render(request, "scheduling/semester_planner.html", context)
     if not run:
         messages.warning(
             request,

@@ -48,7 +48,10 @@
                             <td>
                                 <div class="listing-actions">
                                     <a href="{% url 'teacher_edit' item.id %}" class="listing-pill">Editar</a>
-                                    <a href="{% url 'teacher_delete' item.id %}" class="listing-pill listing-pill-soft">Eliminar</a>
+                                    <form method="post" action="{% url 'teacher_delete' item.id %}" class="inline-form">
+                                        {% csrf_token %}
+                                        <button type="submit" class="listing-pill listing-pill-soft">Eliminar</button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
