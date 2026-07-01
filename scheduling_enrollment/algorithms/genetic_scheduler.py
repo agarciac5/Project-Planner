@@ -14,7 +14,7 @@ class TimeSlotResource:
     @property
     def duration_hours(self) -> float:
         start = datetime.combine(datetime.today(), self.start_time)
-        end = datetime.combine(datetime.today(), self.end_time)
+        end   = datetime.combine(datetime.today(), self.end_time)
         return (end - start).total_seconds() / 3600
 
 
@@ -110,6 +110,11 @@ def _build_feasible_candidates(
     classrooms: dict[int, ClassroomResource],
     timeslots: dict[int, TimeSlotResource],
 ) -> dict[int, list[tuple[int, int, int]]]:
+    """
+    Retorna, para cada curso, la lista de tuplas (teacher_id, classroom_id, slot_index)
+    que son viables: el docente está calificado, tiene disponibilidad en ese slot
+    y no lo ocupa una actividad extra.
+    """
     candidates: dict[int, list[tuple[int, int, int]]] = {}
     classroom_ids = list(classrooms.keys())
     for course_id in demand_courses:
@@ -132,7 +137,19 @@ def _normalize_assignments(
     chromosome: list[SectionGene],
     potential_sections: list[PotentialSection],
     demand_courses: dict[int, DemandCourse],
+    classrooms: dict[int, ClassroomResource],
 ) -> tuple[list[AssignmentResult], dict[int, list[int]]]:
+    """
+    Distribuye los estudiantes en espera entre las secciones abiertas de cada curso.
+
+    Cambios respecto a la versión anterior
+    ──────────────────────────────────────
+    • La capacidad de cada sección se toma del aula real (classroom.capacity)
+      en lugar del valor hardcodeado 20.
+    • Los estudiantes se distribuyen proporcionalmente entre secciones usando
+      la capacidad real como techo, no un techo fijo de 20.
+    • Si no hay aula asignada se conserva capacity=20 como fallback seguro.
+    """
     open_indexes_by_course: dict[int, list[int]] = {}
     for idx, gene in enumerate(chromosome):
         if not gene.open_section:
@@ -142,15 +159,27 @@ def _normalize_assignments(
 
     assignments: list[AssignmentResult] = []
     for course_id, indexes in open_indexes_by_course.items():
-        demand = demand_courses[course_id].demand
+        demand    = demand_courses[course_id].demand
         remaining = demand
         open_count = len(indexes)
+
         for position, idx in enumerate(indexes):
-            gene = chromosome[idx]
+            gene    = chromosome[idx]
             section = potential_sections[idx]
+
+            # Capacidad real del aula, con fallback a 20
+            room_capacity = 20
+            if gene.classroom_id and gene.classroom_id in classrooms:
+                room_capacity = classrooms[gene.classroom_id].capacity
+
             sections_left = open_count - position
-            students_assigned = min(20, math.ceil(remaining / sections_left)) if sections_left else 0
-            remaining -= students_assigned
+            if sections_left > 0:
+                # Distribuir de forma proporcional sin superar la capacidad del aula
+                students_assigned = min(room_capacity, math.ceil(remaining / sections_left))
+            else:
+                students_assigned = 0
+
+            remaining -= max(students_assigned, 0)
             assignments.append(
                 AssignmentResult(
                     course_id=section.course_id,
@@ -161,7 +190,7 @@ def _normalize_assignments(
                     classroom_id=gene.classroom_id or 0,
                     timeslot_index=gene.timeslot_index or 0,
                     students_assigned=max(students_assigned, 0),
-                    capacity=20,
+                    capacity=room_capacity,
                 )
             )
     return assignments, open_indexes_by_course
@@ -191,28 +220,29 @@ def evaluate_semester_schedule(
         "penalties": {},
     }
     penalties = {
-        "uncovered_demand": 0.0,
-        "extra_sections": 0.0,
-        "missing_resources": 0.0,
-        "qualification": 0.0,
-        "capacity": 0.0,
-        "teacher_conflicts": 0.0,
-        "classroom_conflicts": 0.0,
-        "availability": 0.0,
-        "activities": 0.0,
-        "below_min_section_size": 0.0,
-        "load_balance": 0.0,
-        "contract_overload": 0.0,
-        "under_min_hours": 0.0,
+        "uncovered_demand":      0.0,
+        "extra_sections":        0.0,
+        "missing_resources":     0.0,
+        "qualification":         0.0,
+        "capacity":              0.0,
+        "teacher_conflicts":     0.0,
+        "classroom_conflicts":   0.0,
+        "availability":          0.0,
+        "activities":            0.0,
+        "below_min_section_size":0.0,
+        "load_balance":          0.0,
+        "contract_overload":     0.0,
+        "under_min_hours":       0.0,
     }
 
+    # _normalize_assignments ahora recibe classrooms para usar capacidades reales
     assignments, open_indexes_by_course = _normalize_assignments(
-        chromosome, potential_sections, demand_courses
+        chromosome, potential_sections, demand_courses, classrooms
     )
 
-    teacher_slots: dict[int, set[int]] = {}
+    teacher_slots:   dict[int, set[int]] = {}
     classroom_slots: dict[int, set[int]] = {}
-    teacher_hours: dict[int, float] = {}
+    teacher_hours:   dict[int, float]    = {}
 
     for course_id, course in demand_courses.items():
         open_count = len(open_indexes_by_course.get(course_id, []))
@@ -234,9 +264,9 @@ def evaluate_semester_schedule(
             score -= penalty
 
     for assignment in assignments:
-        teacher = teachers.get(assignment.teacher_id)
+        teacher   = teachers.get(assignment.teacher_id)
         classroom = classrooms.get(assignment.classroom_id)
-        slot = timeslots.get(assignment.timeslot_index)
+        slot      = timeslots.get(assignment.timeslot_index)
 
         if not teacher or not classroom or not slot:
             summary["hard_conflicts"] += 1
@@ -256,6 +286,7 @@ def evaluate_semester_schedule(
 
         teacher_slots.setdefault(teacher.teacher_id, set())
         classroom_slots.setdefault(classroom.classroom_id, set())
+
         if assignment.timeslot_index in teacher_slots[teacher.teacher_id]:
             summary["hard_conflicts"] += 1
             penalties["teacher_conflicts"] += 18
@@ -285,7 +316,9 @@ def evaluate_semester_schedule(
             penalties["below_min_section_size"] += 4
             score -= 4
 
-        teacher_hours[teacher.teacher_id] = teacher_hours.get(teacher.teacher_id, 0.0) + slot.duration_hours
+        teacher_hours[teacher.teacher_id] = (
+            teacher_hours.get(teacher.teacher_id, 0.0) + slot.duration_hours
+        )
 
     loads = list(teacher_hours.values())
     summary["teachers_used"] = len(loads)
@@ -310,13 +343,13 @@ def evaluate_semester_schedule(
             penalties["under_min_hours"] += penalty
             score -= penalty
 
-    covered = sum(a.students_assigned for a in assignments)
+    covered     = sum(a.students_assigned for a in assignments)
     total_demand = sum(course.demand for course in demand_courses.values())
-    summary["demand_covered"] = covered
-    summary["demand_total"] = total_demand
+    summary["demand_covered"]  = covered
+    summary["demand_total"]    = total_demand
     summary["sections_opened"] = len(assignments)
-    summary["penalties"] = {key: round(value, 2) for key, value in penalties.items()}
-    summary["total_penalty"] = round(sum(penalties.values()), 2)
+    summary["penalties"]       = {key: round(value, 2) for key, value in penalties.items()}
+    summary["total_penalty"]   = round(sum(penalties.values()), 2)
     score = max(0.0, min(100.0, round(score, 2)))
     return FitnessResult(score=score, summary=summary, assignments=assignments)
 
@@ -426,7 +459,7 @@ def _generate_population(
 
     population = []
     for _ in range(population_size):
-        used_teacher_slots: set[tuple[int, int]] = set()
+        used_teacher_slots:   set[tuple[int, int]] = set()
         used_classroom_slots: set[tuple[int, int]] = set()
         chromosome: list[SectionGene] = []
         section_lookup: dict[int, SectionGene] = {}
@@ -434,7 +467,11 @@ def _generate_population(
         for course_id, sections in sections_by_course.items():
             course = demand_courses[course_id]
             preferred_sections = course.min_sections
-            if course.max_sections > course.min_sections and course.demand % 20 >= 10 and random.random() < 0.35:
+            if (
+                course.max_sections > course.min_sections
+                and course.demand % 20 >= 10
+                and random.random() < 0.35
+            ):
                 preferred_sections += 1
             preferred_sections = min(preferred_sections, course.max_sections)
 
@@ -442,12 +479,7 @@ def _generate_population(
                 if order > preferred_sections:
                     gene = SectionGene(False, None, None, None)
                 else:
-                    gene = _random_gene(
-                        section,
-                        demand_courses,
-                        feasible_candidates,
-                        force_open=True,
-                    )
+                    gene = _random_gene(section, demand_courses, feasible_candidates, force_open=True)
                     candidates = feasible_candidates.get(course_id, [])
                     random.shuffle(candidates)
                     for teacher_id, classroom_id, timeslot_index in candidates:
@@ -496,26 +528,18 @@ def _mutate(
             continue
         section = potential_sections[idx]
         if random.random() < 0.25:
-            chromosome[idx] = _random_gene(
-                section,
-                demand_courses,
-                feasible_candidates,
-            )
+            chromosome[idx] = _random_gene(section, demand_courses, feasible_candidates)
             continue
         if not gene.open_section:
-            chromosome[idx] = _random_gene(
-                section,
-                demand_courses,
-                feasible_candidates,
-            )
+            chromosome[idx] = _random_gene(section, demand_courses, feasible_candidates)
             continue
         candidates = feasible_candidates.get(section.course_id, [])
         if not candidates:
             chromosome[idx] = SectionGene(False, None, None, None)
             continue
         teacher_id, classroom_id, timeslot_index = random.choice(candidates)
-        chromosome[idx].teacher_id = teacher_id
-        chromosome[idx].classroom_id = classroom_id
+        chromosome[idx].teacher_id    = teacher_id
+        chromosome[idx].classroom_id  = classroom_id
         chromosome[idx].timeslot_index = timeslot_index
     return chromosome
 
@@ -532,24 +556,48 @@ def run_semester_planner(
     elitism: int = 4,
     options_limit: int = 3,
 ) -> list[FitnessResult]:
+    """
+    Ejecuta el algoritmo genético global y retorna hasta `options_limit`
+    soluciones diversas ordenadas por score descendente.
+
+    Cambios respecto a la versión anterior
+    ──────────────────────────────────────
+    • Se eliminó el `return []` cuando algún curso no tiene candidatos viables.
+      Esa responsabilidad ya la maneja `_split_schedulable_demand_courses` en
+      services.py, que filtra esos cursos antes de llamar aquí.  Si se llega a
+      este punto con la lista de demand_courses ya limpia, el algoritmo siempre
+      puede generar al menos un plan parcial.
+    • Se pasa `classroom_map` a `evaluate_semester_schedule` →
+      `_normalize_assignments` para usar capacidades reales de aula.
+    """
     if not demand_courses or not teachers or not classrooms or not timeslots:
         return []
 
-    demand_map = {course.course_id: course for course in demand_courses}
-    teacher_map = {teacher.teacher_id: teacher for teacher in teachers}
+    demand_map    = {course.course_id: course       for course in demand_courses}
+    teacher_map   = {teacher.teacher_id: teacher    for teacher in teachers}
     classroom_map = {classroom.classroom_id: classroom for classroom in classrooms}
-    timeslot_map = {slot.index: slot for slot in timeslots}
+    timeslot_map  = {slot.index: slot               for slot in timeslots}
+
     feasible_candidates = _build_feasible_candidates(
-        demand_map,
-        teacher_map,
-        classroom_map,
-        timeslot_map,
+        demand_map, teacher_map, classroom_map, timeslot_map,
     )
-    if any(not candidates for candidates in feasible_candidates.values()):
+
+    # ── CAMBIO CLAVE ──────────────────────────────────────────────────────────
+    # Ya NO abortamos si algún curso no tiene candidatos; ese filtrado ocurre
+    # en _split_schedulable_demand_courses (services.py) antes de llegar aquí.
+    # Solo filtramos los cursos sin candidatos dentro de esta ejecución para no
+    # generar secciones imposibles, pero continuamos con los que sí los tienen.
+    schedulable_demand = {
+        cid: course
+        for cid, course in demand_map.items()
+        if feasible_candidates.get(cid)
+    }
+    if not schedulable_demand:
         return []
+    # ─────────────────────────────────────────────────────────────────────────
 
     potential_sections: list[PotentialSection] = []
-    for course in demand_courses:
+    for course in schedulable_demand.values():
         for section_number in range(1, course.max_sections + 1):
             potential_sections.append(
                 PotentialSection(
@@ -562,10 +610,7 @@ def run_semester_planner(
             )
 
     population = _generate_population(
-        potential_sections,
-        demand_map,
-        feasible_candidates,
-        population_size,
+        potential_sections, schedulable_demand, feasible_candidates, population_size,
     )
     archive: dict[str, FitnessResult] = {}
 
@@ -580,9 +625,9 @@ def run_semester_planner(
             evaluate_semester_schedule(
                 chromosome,
                 potential_sections,
-                demand_map,
+                schedulable_demand,
                 teacher_map,
-                classroom_map,
+                classroom_map,   # ← se pasa para usar capacidades reales
                 timeslot_map,
             )
             for chromosome in population
@@ -599,9 +644,7 @@ def run_semester_planner(
 
         if len(archive) > 250:
             trimmed_items = sorted(
-                archive.items(),
-                key=lambda item: item[1].score,
-                reverse=True,
+                archive.items(), key=lambda item: item[1].score, reverse=True,
             )[:250]
             archive = dict(trimmed_items)
 
@@ -616,25 +659,13 @@ def run_semester_planner(
             if random.random() < crossover_rate:
                 child_a, child_b = _crossover(parent_a, parent_b)
             else:
-                child_a, child_b = parent_a, parent_b
+                child_a, child_b = parent_a[:], parent_b[:]
             new_population.append(
-                _mutate(
-                    child_a,
-                    potential_sections,
-                    demand_map,
-                    feasible_candidates,
-                    mutation_rate,
-                )
+                _mutate(child_a, potential_sections, schedulable_demand, feasible_candidates, mutation_rate)
             )
             if len(new_population) < population_size:
                 new_population.append(
-                    _mutate(
-                        child_b,
-                        potential_sections,
-                        demand_map,
-                        feasible_candidates,
-                        mutation_rate,
-                    )
+                    _mutate(child_b, potential_sections, schedulable_demand, feasible_candidates, mutation_rate)
                 )
         population = new_population
 

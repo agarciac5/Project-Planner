@@ -107,7 +107,10 @@ def added_success_view(request):
 @roles_required(*ACADEMIC_MANAGEMENT_ROLES)
 def programs_view(request):
     context = _base_context(request)
-    context["items"] = get_programs()
+    # Mostrar solo el programa Ingeniería de Software
+    from django.db.models import Q
+    program_q = Q(name__iexact="Ingenieria de Software") | Q(name__iexact="Ingeniería de Software")
+    context["items"] = AcademicProgram.objects.filter(program_q).order_by("id")
     return render(request, "dashboard/programs.html", context)
 
 
@@ -121,7 +124,8 @@ def study_plan_view(request):
         .prefetch_related("courses")
         .order_by("program__name", "version")
     )
-    programs = AcademicProgram.objects.order_by("name")
+    # Mostrar solo el programa Ingeniería de Software
+    programs = AcademicProgram.objects.filter(name__iexact="Ingenieria de Software").order_by("name")
 
     if selected_program:
         study_plans = study_plans.filter(program__name=selected_program)
