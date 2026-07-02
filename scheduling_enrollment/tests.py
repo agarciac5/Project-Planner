@@ -31,6 +31,7 @@ from scheduling_enrollment.models import (
     SemesterScheduleAssignment,
     SemesterScheduleOption,
     SemesterScheduleRun,
+    TeacherActivity,
 )
 from scheduling_enrollment.services.enrollment_service import (
     assign_waiting_students_to_groups,
@@ -765,6 +766,21 @@ class PersonalScheduleViewTest(TestCase):
             term=self.term,
             status="active",
         )
+        EnrollmentQueue.objects.create(
+            student=self.student,
+            course=self.course,
+            course_group=self.group,
+            term=self.term,
+            status="enrolled",
+        )
+        TeacherActivity.objects.create(
+            teacher=self.teacher,
+            term=self.term,
+            activity_type="asesoria",
+            day="Wednesday",
+            start_time=time(10, 0),
+            end_time=time(11, 30),
+        )
 
     def test_my_student_schedule_view_shows_published_enrollments(self):
         self.client.force_login(self.student)
@@ -775,6 +791,25 @@ class PersonalScheduleViewTest(TestCase):
         self.assertContains(response, "SW101")
         self.assertContains(response, "Algoritmos")
         self.assertContains(response, "A101")
+        self.assertContains(response, "Calendario de clases")
+        self.assertContains(response, "Lista de clases")
+        self.assertContains(response, 'data-course-code="SW101"')
+        self.assertEqual(response.context["calendar_events"][0]["grid_span"], 3)
+
+    def test_complete_student_schedule_uses_calendar_and_list(self):
+        coordinator = get_user_model().objects.create_user(
+            email="schedule-director@test.com",
+            password="secret123",
+            role="coordinator",
+        )
+        self.client.force_login(coordinator)
+
+        response = self.client.get(reverse("student_complete_schedule"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Calendario de clases")
+        self.assertContains(response, "Lista de clases")
+        self.assertContains(response, 'data-course-code="SW101"')
 
     def test_my_student_schedule_view_redirects_student_without_profile(self):
         student_without_profile = get_user_model().objects.create_user(
@@ -797,6 +832,28 @@ class PersonalScheduleViewTest(TestCase):
         self.assertContains(response, "SW101")
         self.assertContains(response, "student-schedule@test.com")
         self.assertContains(response, "A101")
+        self.assertContains(response, "Calendario docente")
+        self.assertContains(response, "Lista de compromisos")
+        self.assertContains(response, "Estudiantes asignados")
+        self.assertContains(response, 'data-course-code="SW101"')
+        self.assertContains(response, 'data-event-kind="Actividad"')
+        self.assertContains(response, "Asesoría")
+
+    def test_complete_teacher_schedule_uses_calendar_and_list(self):
+        coordinator = get_user_model().objects.create_user(
+            email="teacher-calendar-director@test.com",
+            password="secret123",
+            role="coordinator",
+        )
+        self.client.force_login(coordinator)
+
+        response = self.client.get(reverse("teacher_complete_schedule"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Calendario docente")
+        self.assertContains(response, "Lista de compromisos")
+        self.assertContains(response, 'data-course-code="SW101"')
+        self.assertContains(response, 'data-event-kind="Actividad"')
 
     def test_my_teacher_schedule_view_redirects_teacher_without_profile(self):
         teacher_without_profile = get_user_model().objects.create_user(

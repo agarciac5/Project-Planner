@@ -86,6 +86,9 @@ DAYS_ES = {
 }
 
 DAYS_ORDER = list(DAYS_ES.keys())
+STUDENT_CALENDAR_START = 6 * 60
+STUDENT_CALENDAR_END = 22 * 60
+STUDENT_CALENDAR_SLOT = 30
 
 SEMESTER_PENALTY_LABELS = {
     "uncovered_demand": "Demanda sin cubrir",
@@ -198,6 +201,7 @@ def _teacher_schedule_rows(teacher, term):
     if selected_schedule:
         sessions = (
             selected_schedule.sessions.select_related("group__course", "classroom")
+            .prefetch_related("group__enrollments")
             .order_by("day", "start_time")
         )
         for session in sessions:
@@ -208,6 +212,7 @@ def _teacher_schedule_rows(teacher, term):
                     "course_code": session.group.course.code,
                     "course_name": session.group.course.name,
                     "section": session.group.nrc or f"Grupo {session.group.id}",
+                    "day_key": session.day,
                     "day": DAYS_ES.get(session.day, session.day),
                     "day_order": DAYS_ORDER.index(session.day) if session.day in DAYS_ORDER else 99,
                     "start_time": session.start_time.strftime("%H:%M"),
@@ -215,6 +220,10 @@ def _teacher_schedule_rows(teacher, term):
                     "location": session.classroom.classroom_id if session.classroom else "Virtual",
                     "status": selected_schedule.get_status_display(),
                     "notes": "Sesion academica asignada.",
+                    "student_count": sum(
+                        enrollment.status == "active"
+                        for enrollment in session.group.enrollments.all()
+                    ),
                 }
             )
 
@@ -230,6 +239,7 @@ def _teacher_schedule_rows(teacher, term):
                 "course_code": "",
                 "course_name": activity.get_activity_type_display(),
                 "section": "-",
+                "day_key": activity.day,
                 "day": DAYS_ES.get(activity.day, activity.day),
                 "day_order": DAYS_ORDER.index(activity.day) if activity.day in DAYS_ORDER else 99,
                 "start_time": activity.start_time.strftime("%H:%M"),
@@ -237,6 +247,7 @@ def _teacher_schedule_rows(teacher, term):
                 "location": "Sin aula",
                 "status": "Registrada",
                 "notes": f"Carga adicional de {activity.duration_hours}h.",
+                "student_count": "-",
             }
         )
 
@@ -250,6 +261,154 @@ def _teacher_schedule_rows(teacher, term):
         "rows": rows,
         "class_count": len(class_rows),
         "activity_count": len(activity_rows),
+        **_teacher_calendar_context(rows),
+    }
+
+
+def _teacher_calendar_context(rows):
+    calendar_days = [
+        {
+            "key": day,
+            "label": DAYS_ES[day],
+            "column": index + 2,
+        }
+        for index, day in enumerate(DAYS_ORDER)
+    ]
+    calendar_times = [
+        {
+            "label": _clock_label(minutes),
+            "grid_row": index + 2,
+        }
+        for index, minutes in enumerate(
+            range(
+                STUDENT_CALENDAR_START,
+                STUDENT_CALENDAR_END,
+                STUDENT_CALENDAR_SLOT,
+            )
+        )
+    ]
+
+    calendar_events = []
+    for row in rows:
+        day_key = row.get("day_key")
+        if day_key not in DAYS_ORDER:
+            continue
+        try:
+            start_hour, start_minute = map(int, row["start_time"].split(":"))
+            end_hour, end_minute = map(int, row["end_time"].split(":"))
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+        start = max(
+            STUDENT_CALENDAR_START,
+            start_hour * 60 + start_minute,
+        )
+        end = min(
+            STUDENT_CALENDAR_END,
+            end_hour * 60 + end_minute,
+        )
+        if end <= start:
+            continue
+
+        event = dict(row)
+        event["day_column"] = DAYS_ORDER.index(day_key) + 2
+        event["grid_row"] = (
+            (start - STUDENT_CALENDAR_START) // STUDENT_CALENDAR_SLOT
+        ) + 2
+        event["grid_span"] = max(
+            1,
+            (end - start + STUDENT_CALENDAR_SLOT - 1)
+            // STUDENT_CALENDAR_SLOT,
+        )
+        event["color_index"] = (
+            0
+            if row["kind"] == "Actividad"
+            else (sum(ord(character) for character in row["course_code"]) % 5)
+            + 1
+        )
+        calendar_events.append(event)
+
+    return {
+        "calendar_days": calendar_days,
+        "calendar_times": calendar_times,
+        "calendar_events": calendar_events,
+    }
+
+
+def _published_teacher_schedule_context(teacher, term, groups):
+    class_rows = []
+    for group in groups:
+        student_count = sum(
+            enrollment.status == "active"
+            for enrollment in group.enrollments.all()
+        )
+        for session in group.sessions.all():
+            class_rows.append(
+                {
+                    "kind": "Clase",
+                    "kind_class": "kind-class",
+                    "course_code": group.course.code,
+                    "course_name": group.course.name,
+                    "section": group.nrc or f"Grupo {group.id}",
+                    "day_key": session.day,
+                    "day": DAYS_ES.get(session.day, session.day),
+                    "day_order": (
+                        DAYS_ORDER.index(session.day)
+                        if session.day in DAYS_ORDER
+                        else 99
+                    ),
+                    "start_time": session.start_time.strftime("%H:%M"),
+                    "end_time": session.end_time.strftime("%H:%M"),
+                    "location": (
+                        session.classroom.classroom_id
+                        if session.classroom
+                        else "Virtual"
+                    ),
+                    "status": "Publicado",
+                    "notes": "Horario oficial publicado.",
+                    "student_count": student_count,
+                }
+            )
+
+    activity_rows = [
+        {
+            "kind": "Actividad",
+            "kind_class": "kind-activity",
+            "course_code": "",
+            "course_name": activity.get_activity_type_display(),
+            "section": "-",
+            "day_key": activity.day,
+            "day": DAYS_ES.get(activity.day, activity.day),
+            "day_order": (
+                DAYS_ORDER.index(activity.day)
+                if activity.day in DAYS_ORDER
+                else 99
+            ),
+            "start_time": activity.start_time.strftime("%H:%M"),
+            "end_time": activity.end_time.strftime("%H:%M"),
+            "location": "Sin aula",
+            "status": "Registrada",
+            "notes": f"Carga adicional de {activity.duration_hours}h.",
+            "student_count": "-",
+        }
+        for activity in TeacherActivity.objects.filter(
+            teacher=teacher,
+            term=term,
+        ).order_by("day", "start_time")
+    ]
+    rows = sorted(
+        class_rows + activity_rows,
+        key=lambda row: (
+            row["day_order"],
+            row["start_time"],
+            row["kind"] != "Clase",
+        ),
+    )
+    return {
+        "rows": rows,
+        "class_count": len(class_rows),
+        "activity_count": len(activity_rows),
+        **_teacher_calendar_context(rows),
     }
 
 
@@ -275,6 +434,7 @@ def _student_schedule_rows(student_profile, term):
                     "course_name": enrollment.course.name,
                     "section": "Sin grupo asignado",
                     "teacher": "Pendiente",
+                    "day_key": None,
                     "day": "-",
                     "day_order": 99,
                     "start_time": "-",
@@ -297,6 +457,7 @@ def _student_schedule_rows(student_profile, term):
                     "course_name": enrollment.course.name,
                     "section": selected_group.nrc or f"Grupo {selected_group.id}",
                     "teacher": str(selected_group.teacher) if selected_group.teacher else "Pendiente",
+                    "day_key": None,
                     "day": "-",
                     "day_order": 99,
                     "start_time": "-",
@@ -315,6 +476,7 @@ def _student_schedule_rows(student_profile, term):
                     "course_name": enrollment.course.name,
                     "section": selected_group.nrc or f"Grupo {selected_group.id}",
                     "teacher": str(selected_group.teacher) if selected_group.teacher else "Pendiente",
+                    "day_key": session.day,
                     "day": DAYS_ES.get(session.day, session.day),
                     "day_order": DAYS_ORDER.index(session.day) if session.day in DAYS_ORDER else 99,
                     "start_time": session.start_time.strftime("%H:%M"),
@@ -325,10 +487,90 @@ def _student_schedule_rows(student_profile, term):
                 }
             )
 
+    rows = sorted(
+        rows,
+        key=lambda row: (row["day_order"], row["start_time"], row["course_code"]),
+    )
     return {
-        "rows": sorted(rows, key=lambda row: (row["day_order"], row["start_time"], row["course_code"])),
+        "rows": rows,
         "course_count": len(enrollments),
         "session_count": len([row for row in rows if row["day"] != "-"]),
+        **_student_calendar_context(rows),
+    }
+
+
+def _clock_label(total_minutes):
+    hour, minute = divmod(total_minutes, 60)
+    suffix = "am" if hour < 12 else "pm"
+    display_hour = hour % 12 or 12
+    return f"{display_hour}:{minute:02d} {suffix}"
+
+
+def _student_calendar_context(rows):
+    calendar_days = [
+        {
+            "key": day,
+            "label": DAYS_ES[day],
+            "column": index + 2,
+        }
+        for index, day in enumerate(DAYS_ORDER)
+    ]
+    calendar_times = [
+        {
+            "label": _clock_label(minutes),
+            "grid_row": index + 2,
+        }
+        for index, minutes in enumerate(
+            range(
+                STUDENT_CALENDAR_START,
+                STUDENT_CALENDAR_END,
+                STUDENT_CALENDAR_SLOT,
+            )
+        )
+    ]
+
+    calendar_events = []
+    for row in rows:
+        day_key = row.get("day_key")
+        if day_key not in DAYS_ORDER:
+            continue
+        try:
+            start_hour, start_minute = map(int, row["start_time"].split(":"))
+            end_hour, end_minute = map(int, row["end_time"].split(":"))
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+        start = max(
+            STUDENT_CALENDAR_START,
+            start_hour * 60 + start_minute,
+        )
+        end = min(
+            STUDENT_CALENDAR_END,
+            end_hour * 60 + end_minute,
+        )
+        if end <= start:
+            continue
+
+        event = dict(row)
+        event["day_column"] = DAYS_ORDER.index(day_key) + 2
+        event["grid_row"] = (
+            (start - STUDENT_CALENDAR_START) // STUDENT_CALENDAR_SLOT
+        ) + 2
+        event["grid_span"] = max(
+            1,
+            (end - start + STUDENT_CALENDAR_SLOT - 1)
+            // STUDENT_CALENDAR_SLOT,
+        )
+        event["color_index"] = (
+            sum(ord(character) for character in row["course_code"]) % 5
+        ) + 1
+        calendar_events.append(event)
+
+    return {
+        "calendar_days": calendar_days,
+        "calendar_times": calendar_times,
+        "calendar_events": calendar_events,
+        "calendar_slot_count": len(calendar_times),
     }
 
 
@@ -743,6 +985,7 @@ def my_student_schedule_view(request):
         return redirect("home")
     active_term = get_active_term()
     enrollments = []
+    schedule_rows = []
     if active_term:
         enrollments = (
             Enrollment.objects.filter(
@@ -756,6 +999,44 @@ def my_student_schedule_view(request):
             .distinct()
             .order_by("course_group__course__code")
         )
+        for enrollment in enrollments:
+            group = enrollment.course_group
+            for session in group.sessions.all():
+                schedule_rows.append(
+                    {
+                        "course_code": group.course.code,
+                        "course_name": group.course.name,
+                        "section": group.nrc or f"Grupo {group.id}",
+                        "teacher": (
+                            str(group.teacher)
+                            if group.teacher
+                            else "Pendiente"
+                        ),
+                        "day_key": session.day,
+                        "day": DAYS_ES.get(session.day, session.day),
+                        "day_order": (
+                            DAYS_ORDER.index(session.day)
+                            if session.day in DAYS_ORDER
+                            else 99
+                        ),
+                        "start_time": session.start_time.strftime("%H:%M"),
+                        "end_time": session.end_time.strftime("%H:%M"),
+                        "location": (
+                            session.classroom.classroom_id
+                            if session.classroom
+                            else "Virtual"
+                        ),
+                        "status": "Publicado",
+                        "notes": "Horario oficial publicado.",
+                    }
+                )
+        schedule_rows.sort(
+            key=lambda row: (
+                row["day_order"],
+                row["start_time"],
+                row["course_code"],
+            )
+        )
 
     return render(
         request,
@@ -764,6 +1045,10 @@ def my_student_schedule_view(request):
             "student_profile": student_profile,
             "active_term": active_term,
             "enrollments": enrollments,
+            "rows": schedule_rows,
+            "course_count": len(enrollments),
+            "session_count": len(schedule_rows),
+            **_student_calendar_context(schedule_rows),
         },
     )
 
@@ -781,8 +1066,14 @@ def my_teacher_schedule_view(request):
 
     active_term = get_active_term()
     groups = []
+    schedule_context = {
+        "rows": [],
+        "class_count": 0,
+        "activity_count": 0,
+        **_teacher_calendar_context([]),
+    }
     if active_term:
-        groups = (
+        groups = list(
             CourseGroup.objects.filter(
                 teacher=teacher,
                 term=active_term,
@@ -793,6 +1084,11 @@ def my_teacher_schedule_view(request):
             .distinct()
             .order_by("course__code")
         )
+        schedule_context = _published_teacher_schedule_context(
+            teacher,
+            active_term,
+            groups,
+        )
 
     return render(
         request,
@@ -801,6 +1097,7 @@ def my_teacher_schedule_view(request):
             "teacher": teacher,
             "active_term": active_term,
             "groups": groups,
+            **schedule_context,
         },
     )
 

@@ -1,0 +1,143 @@
+<section class="teacher-schedule-card" aria-labelledby="teacher-calendar-title">
+  <div class="teacher-schedule-heading">
+    <div>
+      <span class="teacher-eyebrow">Vista semanal</span>
+      <h2 id="teacher-calendar-title">Calendario docente</h2>
+      <p>Clases y actividades entre las 6:00 am y las 10:00 pm.</p>
+    </div>
+    <div class="teacher-legend">
+      <span><i class="legend-dot class-dot"></i> Clases</span>
+      <span><i class="legend-dot activity-dot"></i> Actividades</span>
+      <span>{{ class_count }} clase{{ class_count|pluralize:"s" }}</span>
+    </div>
+  </div>
+
+  <div class="teacher-calendar-scroll">
+    <div class="teacher-calendar" role="grid" aria-label="Horario semanal del docente">
+      <div class="teacher-calendar-corner" role="columnheader">Hora</div>
+
+      {% for day in calendar_days %}
+      <div class="teacher-day-header" style="--column: {{ day.column }}" role="columnheader">
+        {{ day.label }}
+      </div>
+      <div class="teacher-day-background" style="--column: {{ day.column }}" aria-hidden="true"></div>
+      {% endfor %}
+
+      {% for time in calendar_times %}
+      <div class="teacher-time-label" style="--row: {{ time.grid_row }}" role="rowheader">
+        {{ time.label }}
+      </div>
+      {% endfor %}
+
+      {% for event in calendar_events %}
+      <article
+        class="teacher-calendar-event {% if event.kind == 'Actividad' %}teacher-activity-event{% else %}teacher-event-color-{{ event.color_index }}{% endif %}"
+        style="--column: {{ event.day_column }}; --row: {{ event.grid_row }}; --span: {{ event.grid_span }}"
+        data-event-kind="{{ event.kind }}"
+        {% if event.course_code %}data-course-code="{{ event.course_code }}"{% endif %}
+        title="{{ event.course_name }} | {{ event.start_time }} - {{ event.end_time }} | {{ event.location }}"
+      >
+        <strong>{{ event.course_name }}</strong>
+        {% if event.course_code %}
+        <span>{{ event.course_code }} · {{ event.section }}</span>
+        {% else %}
+        <span>Actividad institucional</span>
+        {% endif %}
+        <span>{{ event.start_time }} - {{ event.end_time }}</span>
+        <span>{{ event.location }}</span>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="teacher-schedule-card" aria-labelledby="teacher-list-title">
+  <div class="teacher-schedule-heading">
+    <div>
+      <span class="teacher-eyebrow">Detalle</span>
+      <h2 id="teacher-list-title">Lista de compromisos</h2>
+      <p>Clases, actividades, grupos y estudiantes asociados.</p>
+    </div>
+  </div>
+
+  <div class="teacher-list-scroll">
+    <table class="teacher-schedule-table">
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Curso o actividad</th>
+          <th>Seccion / NRC</th>
+          <th>Dia y hora</th>
+          <th>Ubicacion</th>
+          <th>Estudiantes</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><span class="teacher-kind {{ row.kind_class }}">{{ row.kind }}</span></td>
+          <td>
+            {% if row.course_code %}<code>{{ row.course_code }}</code>{% endif %}
+            <strong>{{ row.course_name }}</strong>
+          </td>
+          <td>{{ row.section }}</td>
+          <td><strong>{{ row.day }}</strong><span>{{ row.start_time }} - {{ row.end_time }}</span></td>
+          <td>{{ row.location }}</td>
+          <td>{{ row.student_count }}</td>
+          <td><span class="teacher-status">{{ row.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if groups %}
+<section class="teacher-schedule-card" aria-labelledby="teacher-groups-title">
+  <div class="teacher-schedule-heading">
+    <div>
+      <span class="teacher-eyebrow">Grupos</span>
+      <h2 id="teacher-groups-title">Estudiantes asignados</h2>
+      <p>Listado de estudiantes matriculados en cada grupo publicado.</p>
+    </div>
+  </div>
+
+  <div class="teacher-group-grid">
+    {% for group in groups %}
+    <article class="teacher-group-card">
+      <div>
+        <code>{{ group.course.code }}</code>
+        <h3>{{ group.course.name }}</h3>
+        <p>NRC {{ group.nrc|default:group.id }} · {{ group.enrollments.count }} estudiantes</p>
+      </div>
+      {% if group.enrollments.all %}
+      <ul>
+        {% for enrollment in group.enrollments.all %}
+        <li>
+          <span>{{ enrollment.student.email }}</span>
+          <small>{{ enrollment.get_status_display }}</small>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="group-empty">No hay estudiantes asignados.</p>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<style>
+.teacher-schedule-card{background:#fff;border:1px solid #dfe6ee;border-radius:14px;padding:1.25rem;margin-bottom:1.5rem;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.teacher-schedule-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:1rem}.teacher-schedule-heading h2{margin:.15rem 0;font-size:1.2rem;color:#172033}.teacher-schedule-heading p{margin:0;color:#64748b;font-size:.9rem}.teacher-eyebrow{color:#0f766e;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.teacher-legend{display:flex;gap:.65rem;flex-wrap:wrap;color:#536174;font-size:.8rem}.teacher-legend span{display:flex;align-items:center;gap:.35rem;background:#f5f8fc;border-radius:999px;padding:.35rem .65rem}.legend-dot{width:.65rem;height:.65rem;border-radius:3px}.class-dot{background:#0f766e}.activity-dot{background:#d97706}
+.teacher-calendar-scroll{overflow-x:auto;border:1px solid #dfe6ee;border-radius:10px}.teacher-calendar{display:grid;grid-template-columns:72px repeat(6,minmax(132px,1fr));grid-template-rows:42px repeat(32,32px);position:relative;min-width:900px;background:#fff}
+.teacher-calendar-corner,.teacher-day-header{display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;border-right:1px solid #e5eaf0;border-bottom:1px solid #d9e0e8;background:#f7f9fc;z-index:4}.teacher-calendar-corner{grid-column:1;grid-row:1;background:#0f766e;color:#fff}.teacher-day-header{grid-column:var(--column);grid-row:1;color:#536174}
+.teacher-day-background{grid-column:var(--column);grid-row:2/-1;border-right:1px solid #e5eaf0;background:repeating-linear-gradient(to bottom,#fff 0,#fff 31px,#e8edf3 31px,#e8edf3 32px);z-index:0}.teacher-time-label{grid-column:1;grid-row:var(--row);display:flex;align-items:flex-start;justify-content:center;padding-top:.22rem;color:#7b8797;font-size:.68rem;border-right:1px solid #d9e0e8;border-bottom:1px solid #e8edf3;background:#fbfcfe;z-index:2}
+.teacher-calendar-event{grid-column:var(--column);grid-row:var(--row)/span var(--span);z-index:3;margin:2px 4px;padding:.38rem .45rem;border-radius:7px;border-left:4px solid rgba(255,255,255,.72);color:#fff;display:flex;flex-direction:column;gap:.08rem;overflow:hidden;box-shadow:0 3px 8px rgba(15,23,42,.18);font-size:.66rem;line-height:1.15}.teacher-calendar-event strong{font-size:.71rem}.teacher-calendar-event span{opacity:.94}.teacher-event-color-1{background:#0756d8}.teacher-event-color-2{background:#087f8c}.teacher-event-color-3{background:#6d3fc0}.teacher-event-color-4{background:#c04b2d}.teacher-event-color-5{background:#237844}.teacher-activity-event{background:#d97706}
+.teacher-list-scroll{overflow-x:auto}.teacher-schedule-table{width:100%;border-collapse:collapse;min-width:900px}.teacher-schedule-table th{padding:.7rem;text-align:left;background:#f7f9fc;color:#536174;font-size:.75rem;border-bottom:1px solid #dfe6ee}.teacher-schedule-table td{padding:.75rem;border-bottom:1px solid #edf1f5;vertical-align:top;color:#354155;font-size:.82rem}.teacher-schedule-table td:nth-child(2) strong,.teacher-schedule-table td:nth-child(4) span{display:block;margin-top:.2rem}.teacher-schedule-table code{display:inline-block;margin-right:.35rem;background:#e8f7f5;color:#0f766e;padding:.14rem .35rem;border-radius:5px;font-weight:700}.teacher-kind,.teacher-status{display:inline-block;padding:.25rem .55rem;border-radius:999px;font-size:.72rem;font-weight:700}.kind-class{background:#e8f7f5;color:#0f766e}.kind-activity{background:#fff2d8;color:#9a5400}.teacher-status{background:#e8f0ff;color:#174ea6}
+.teacher-group-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}.teacher-group-card{border:1px solid #e1e7ee;border-radius:10px;padding:1rem;background:#fbfcfe}.teacher-group-card h3{margin:.35rem 0 .2rem;font-size:1rem}.teacher-group-card p{margin:0;color:#64748b;font-size:.8rem}.teacher-group-card code{background:#e8f7f5;color:#0f766e;padding:.16rem .38rem;border-radius:5px;font-weight:700}.teacher-group-card ul{list-style:none;margin:.8rem 0 0;padding:0;max-height:190px;overflow:auto}.teacher-group-card li{display:flex;justify-content:space-between;gap:.75rem;padding:.48rem 0;border-top:1px solid #e7ecf1;font-size:.78rem}.teacher-group-card li span{overflow-wrap:anywhere}.teacher-group-card small{color:#0f766e;font-weight:700}.group-empty{margin-top:.8rem!important}
+@media(max-width:720px){.teacher-schedule-card{padding:.85rem}.teacher-schedule-heading{align-items:flex-start;flex-direction:column}.teacher-calendar{grid-template-columns:62px repeat(6,124px)}}
+</style>

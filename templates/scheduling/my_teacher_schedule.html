@@ -8,63 +8,18 @@
 </div>
 
 {% if active_term %}
-<div class="card">
+<div class="teacher-summary-card">
   <h2>{{ teacher }}</h2>
-  <p class="subtitle">Periodo activo: {{ active_term.name }} | {{ groups|length }} grupos publicados</p>
+  <p class="subtitle">Periodo activo: {{ active_term.name }}</p>
+  <div class="summary-pills">
+    <span>{{ groups|length }} grupos</span>
+    <span>{{ class_count }} clases</span>
+    <span>{{ activity_count }} actividades</span>
+  </div>
 </div>
 
-{% if groups %}
-  {% for group in groups %}
-  <div class="card">
-    <div class="group-header">
-      <div>
-        <h3><code>{{ group.course.code }}</code> {{ group.course.name }}</h3>
-        <p class="subtitle">NRC {{ group.nrc|default:group.id }} | {{ group.enrollments.count }} estudiantes</p>
-      </div>
-    </div>
-
-    <table class="schedule-table">
-      <thead>
-        <tr>
-          <th>Dia</th>
-          <th>Hora</th>
-          <th>Aula</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for session in group.sessions.all %}
-        <tr>
-          <td>{{ session.get_day_display }}</td>
-          <td>{{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}</td>
-          <td>{% if session.classroom %}{{ session.classroom.classroom_id }}{% else %}Virtual{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <h4>Estudiantes asignados</h4>
-    {% if group.enrollments.all %}
-    <table class="schedule-table">
-      <thead>
-        <tr>
-          <th>Correo</th>
-          <th>Estado</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for enrollment in group.enrollments.all %}
-        <tr>
-          <td>{{ enrollment.student.email }}</td>
-          <td>{{ enrollment.get_status_display }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p>No hay estudiantes asignados a este grupo.</p>
-    {% endif %}
-  </div>
-  {% endfor %}
+{% if rows %}
+  {% include "scheduling/_teacher_schedule_display.html" %}
 {% else %}
 <div class="card empty-card">
   <h3>Sin horario emitido</h3>
@@ -79,6 +34,6 @@
 {% endif %}
 
 <style>
-.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.4rem;margin-bottom:1.5rem}.group-header{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:1rem}.schedule-table{width:100%;border-collapse:collapse;margin-bottom:1rem}.schedule-table th,.schedule-table td{padding:.7rem;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}.schedule-table th{background:#f8fafc}.empty-card{text-align:center}code{background:#f1f5f9;padding:.15rem .3rem;border-radius:4px}
+.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.card,.teacher-summary-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem}.teacher-summary-card{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}.teacher-summary-card h2{margin:0}.summary-pills{display:flex;gap:.5rem;flex-wrap:wrap}.summary-pills span{padding:.35rem .7rem;border-radius:999px;background:#e8f7f5;color:#0f766e;font-size:.78rem;font-weight:700}.empty-card{text-align:center}
 </style>
 {% endblock %}

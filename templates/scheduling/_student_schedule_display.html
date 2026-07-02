@@ -1,0 +1,104 @@
+<section class="student-schedule-card" aria-labelledby="weekly-schedule-title">
+  <div class="student-schedule-heading">
+    <div>
+      <span class="section-eyebrow">Vista semanal</span>
+      <h2 id="weekly-schedule-title">Calendario de clases</h2>
+      <p>Distribucion de lunes a sabado entre las 6:00 am y las 10:00 pm.</p>
+    </div>
+    <div class="schedule-legend">
+      <span><i class="legend-dot"></i> Clase publicada</span>
+      <span>{{ session_count }} sesion{{ session_count|pluralize:"es" }}</span>
+    </div>
+  </div>
+
+  <div class="weekly-calendar-scroll">
+    <div class="weekly-calendar" role="grid" aria-label="Horario semanal del estudiante">
+      <div class="calendar-corner" role="columnheader">Hora</div>
+
+      {% for day in calendar_days %}
+      <div class="calendar-day-header" style="--column: {{ day.column }}" role="columnheader">
+        {{ day.label }}
+      </div>
+      <div class="calendar-day-background" style="--column: {{ day.column }}" aria-hidden="true"></div>
+      {% endfor %}
+
+      {% for time in calendar_times %}
+      <div class="calendar-time-label" style="--row: {{ time.grid_row }}" role="rowheader">
+        {{ time.label }}
+      </div>
+      {% endfor %}
+
+      {% for event in calendar_events %}
+      <article
+        class="calendar-event event-color-{{ event.color_index }}"
+        style="--column: {{ event.day_column }}; --row: {{ event.grid_row }}; --span: {{ event.grid_span }}"
+        data-course-code="{{ event.course_code }}"
+        title="{{ event.course_name }} | {{ event.start_time }} - {{ event.end_time }} | {{ event.location }}"
+      >
+        <strong>{{ event.course_name }}</strong>
+        <span>{{ event.course_code }} · {{ event.section }}</span>
+        <span>{{ event.start_time }} - {{ event.end_time }}</span>
+        <span>{{ event.location }}</span>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="student-schedule-card" aria-labelledby="schedule-list-title">
+  <div class="student-schedule-heading">
+    <div>
+      <span class="section-eyebrow">Detalle</span>
+      <h2 id="schedule-list-title">Lista de clases</h2>
+      <p>Informacion completa de cada sesion programada.</p>
+    </div>
+  </div>
+
+  <div class="schedule-list-scroll">
+    <table class="student-schedule-table">
+      <thead>
+        <tr>
+          <th>Materia</th>
+          <th>Seccion / NRC</th>
+          <th>Docente</th>
+          <th>Dia y hora</th>
+          <th>Ubicacion</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>
+            <code>{{ row.course_code }}</code>
+            <strong>{{ row.course_name }}</strong>
+          </td>
+          <td>{{ row.section }}</td>
+          <td>{{ row.teacher }}</td>
+          <td>
+            <strong>{{ row.day }}</strong>
+            {% if row.start_time != "-" %}
+            <span>{{ row.start_time }} - {{ row.end_time }}</span>
+            {% endif %}
+          </td>
+          <td>{{ row.location }}</td>
+          <td><span class="schedule-status">{{ row.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+.student-schedule-card{background:#fff;border:1px solid #dfe6ee;border-radius:14px;padding:1.25rem;margin-bottom:1.5rem;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.student-schedule-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:1rem}.student-schedule-heading h2{margin:.15rem 0;font-size:1.2rem;color:#172033}.student-schedule-heading p{margin:0;color:#64748b;font-size:.9rem}.section-eyebrow{color:#0756d8;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.schedule-legend{display:flex;gap:.8rem;flex-wrap:wrap;color:#536174;font-size:.8rem}.schedule-legend span{display:flex;align-items:center;gap:.35rem;background:#f5f8fc;border-radius:999px;padding:.35rem .65rem}.legend-dot{width:.65rem;height:.65rem;border-radius:3px;background:#0756d8}
+.weekly-calendar-scroll{overflow-x:auto;border:1px solid #dfe6ee;border-radius:10px}.weekly-calendar{display:grid;grid-template-columns:72px repeat(6,minmax(132px,1fr));grid-template-rows:42px repeat(32,32px);position:relative;min-width:900px;background:#fff}
+.calendar-corner,.calendar-day-header{display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;border-right:1px solid #e5eaf0;border-bottom:1px solid #d9e0e8;background:#f7f9fc;z-index:4}.calendar-corner{grid-column:1;grid-row:1;background:#0756d8;color:#fff}.calendar-day-header{grid-column:var(--column);grid-row:1;color:#536174}
+.calendar-day-background{grid-column:var(--column);grid-row:2/-1;border-right:1px solid #e5eaf0;background:repeating-linear-gradient(to bottom,#fff 0,#fff 31px,#e8edf3 31px,#e8edf3 32px);z-index:0}
+.calendar-time-label{grid-column:1;grid-row:var(--row);display:flex;align-items:flex-start;justify-content:center;padding-top:.22rem;color:#7b8797;font-size:.68rem;border-right:1px solid #d9e0e8;border-bottom:1px solid #e8edf3;background:#fbfcfe;z-index:2}
+.calendar-event{grid-column:var(--column);grid-row:var(--row)/span var(--span);z-index:3;margin:2px 4px;padding:.38rem .45rem;border-radius:7px;border-left:4px solid rgba(255,255,255,.72);color:#fff;display:flex;flex-direction:column;gap:.08rem;overflow:hidden;box-shadow:0 3px 8px rgba(15,23,42,.18);font-size:.66rem;line-height:1.15}.calendar-event strong{font-size:.71rem}.calendar-event span{opacity:.94}.event-color-1{background:#0756d8}.event-color-2{background:#087f8c}.event-color-3{background:#6d3fc0}.event-color-4{background:#c04b2d}.event-color-5{background:#237844}
+.schedule-list-scroll{overflow-x:auto}.student-schedule-table{width:100%;border-collapse:collapse;min-width:820px}.student-schedule-table th{padding:.7rem;text-align:left;background:#f7f9fc;color:#536174;font-size:.75rem;border-bottom:1px solid #dfe6ee}.student-schedule-table td{padding:.75rem;border-bottom:1px solid #edf1f5;vertical-align:top;color:#354155;font-size:.82rem}.student-schedule-table td:first-child strong,.student-schedule-table td:nth-child(4) span{display:block;margin-top:.2rem}.student-schedule-table code{display:inline-block;margin-right:.35rem;background:#eaf2ff;color:#0756d8;padding:.14rem .35rem;border-radius:5px;font-weight:700}.schedule-status{display:inline-block;padding:.25rem .55rem;border-radius:999px;background:#e8f7ee;color:#17663a;font-size:.72rem;font-weight:700}
+@media(max-width:720px){.student-schedule-card{padding:.85rem}.student-schedule-heading{align-items:flex-start;flex-direction:column}.weekly-calendar{grid-template-columns:62px repeat(6,124px)}}
+</style>
