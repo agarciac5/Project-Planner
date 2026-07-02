@@ -87,12 +87,14 @@ Estas cuentas son exclusivamente locales.
 2. Abra **Plan semestral**.
 3. Seleccione `2026-2 Demo`.
 4. Pulse **Generar plan semestral**.
-5. Compruebe que aparecen tres alternativas, 16 de 16 solicitudes cubiertas,
-   dos grupos y cero conflictos duros.
+5. Compruebe que aparecen alternativas con puntuaciones distintas y menores
+   de 100. El sistema prioriza diferencias de al menos 0.5 puntos cuando el
+   algoritmo encuentra candidatos suficientes. El escenario contiene 80
+   solicitudes, cinco materias, cuatro docentes y cuatro aulas.
 6. En la mejor alternativa pulse **Elegir esta opción** y confirme.
 7. Pulse **Aplicar esta opción** y confirme.
-8. Compruebe que aparecen 16 estudiantes asignados, cero pendientes y el
-   estado `Listo para emitir`.
+8. Revise la cantidad de estudiantes asignados, los posibles pendientes y las
+   penalizaciones explicadas en pantalla antes de emitir.
 9. Ingrese como director académico y pulse **Publicar horarios**.
 10. Ingrese como estudiante y revise **Mi horario**.
 11. Ingrese como docente y revise **Mi horario docente**.
@@ -158,8 +160,8 @@ python manage.py test
 El resultado esperado actualmente es:
 
 ```text
-Found 56 test(s).
-Ran 56 tests
+Found 57 test(s).
+Ran 57 tests
 OK
 ```
 

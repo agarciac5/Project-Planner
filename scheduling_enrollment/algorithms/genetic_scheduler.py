@@ -450,6 +450,7 @@ def _select_diverse_results(
     ordered_results: list[FitnessResult],
     options_limit: int,
     min_distance: float = 0.15,
+    min_score_gap: float = 0.5,
 ) -> list[FitnessResult]:
     selected: list[FitnessResult] = []
     seen_signatures: set[tuple] = set()
@@ -458,7 +459,15 @@ def _select_diverse_results(
         signature = _result_signature(result)
         if signature in seen_signatures:
             continue
-        if all(_result_distance(result, chosen) >= min_distance for chosen in selected):
+        score_is_distinct = all(
+            abs(result.score - chosen.score) >= min_score_gap
+            for chosen in selected
+        )
+        schedule_is_distinct = all(
+            _result_distance(result, chosen) >= min_distance
+            for chosen in selected
+        )
+        if score_is_distinct and schedule_is_distinct:
             selected.append(result)
             seen_signatures.add(signature)
         if len(selected) == options_limit:
@@ -642,6 +651,7 @@ def run_semester_planner(
         potential_sections, schedulable_demand, feasible_candidates, population_size,
     )
     archive: dict[str, FitnessResult] = {}
+    score_archive: dict[float, FitnessResult] = {}
 
     def _signature(chromosome: list[SectionGene]) -> str:
         return "|".join(
@@ -671,6 +681,13 @@ def run_semester_planner(
             signature = _signature(population[idx])
             archive.setdefault(signature, fitness_results[idx])
 
+        # Conserva también una solución representativa por cada medio punto.
+        # Sin este archivo, muchas variantes óptimas con el mismo score terminan
+        # desplazando a todas las alternativas con compromisos diferentes.
+        for result in fitness_results:
+            score_bucket = round(result.score * 2) / 2
+            score_archive.setdefault(score_bucket, result)
+
         if len(archive) > 250:
             trimmed_items = sorted(
                 archive.items(), key=lambda item: item[1].score, reverse=True,
@@ -698,5 +715,9 @@ def run_semester_planner(
                 )
         population = new_population
 
-    ordered = sorted(archive.values(), key=lambda result: result.score, reverse=True)
+    ordered = sorted(
+        [*archive.values(), *score_archive.values()],
+        key=lambda result: result.score,
+        reverse=True,
+    )
     return _select_diverse_results(ordered, options_limit=options_limit)

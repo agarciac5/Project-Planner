@@ -10,13 +10,16 @@ from academic_core.models import AcademicProgram, AcademicTerm, Campus, Course, 
 from access_support.models import StudentProfile
 from classrooms.models import Classroom, TimeSlot
 from scheduling_enrollment.algorithms.genetic_scheduler import (
+    AssignmentResult,
     ClassroomResource,
     DemandCourse,
+    FitnessResult,
     PotentialSection,
     SectionGene,
     TeacherResource,
     TimeSlotResource,
     _build_feasible_candidates,
+    _select_diverse_results,
     evaluate_semester_schedule,
 )
 from scheduling_enrollment.models import (
@@ -106,6 +109,37 @@ class GeneticPlannerResourceTests(TestCase):
 
         self.assertEqual(result.summary["demand_covered"], 5)
         self.assertEqual(result.summary["uncovered_students"], 5)
+
+    def test_alternatives_prioritize_different_scores(self):
+        def build_result(score, course_id):
+            return FitnessResult(
+                score=score,
+                summary={},
+                assignments=[
+                    AssignmentResult(
+                        course_id=course_id,
+                        course_code=f"SW{course_id}",
+                        course_name="Materia",
+                        section_number=1,
+                        teacher_id=course_id,
+                        classroom_id=course_id,
+                        timeslot_index=course_id,
+                        students_assigned=10,
+                        capacity=20,
+                    )
+                ],
+            )
+
+        selected = _select_diverse_results(
+            [
+                build_result(96, 1),
+                build_result(96, 2),
+                build_result(92, 3),
+            ],
+            options_limit=2,
+        )
+
+        self.assertEqual([item.score for item in selected], [96, 92])
 
 
 class SemesterPlannerServiceTests(TestCase):

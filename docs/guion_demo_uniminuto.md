@@ -19,7 +19,8 @@ Las credenciales están en `docs/credenciales_demo_roles.md`.
 2. Ingresar como administrador y mostrar estudiantes, docentes, aulas y datos
    académicos.
 3. Generar el plan para el periodo `2026-2 Demo`.
-4. Comparar las alternativas, seleccionar una y aplicarla.
+4. Comparar las penalizaciones por carga, contratos y recursos entre las
+   alternativas; seleccionar una y aplicarla.
 5. Ingresar como director académico y publicar el horario.
 6. Volver a ingresar como estudiante o docente para mostrar el horario
    publicado.
