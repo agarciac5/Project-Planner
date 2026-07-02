@@ -1,8 +1,11 @@
+from datetime import time
+
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
 from access_support.models import User
-from classrooms.models import Classroom
+from classrooms.models import Classroom, TimeSlot
 
 
 class ClassroomCrudViewTest(TestCase):
@@ -54,3 +57,11 @@ class ClassroomCrudViewTest(TestCase):
             "block",
             "Ensure this value is less than or equal to 5.",
         )
+
+    def test_timeslot_end_must_follow_start(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            TimeSlot.objects.create(
+                day="Monday",
+                start_time=time(10, 0),
+                end_time=time(9, 0),
+            )

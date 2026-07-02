@@ -2,12 +2,26 @@ import random
 from datetime import date, time
 
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
 from academic_core.models import AcademicProgram, AcademicTerm, Campus, Course, Faculty, StudyPlan
 from access_support.models import StudentProfile
 from classrooms.models import Classroom, TimeSlot
+from scheduling_enrollment.algorithms.genetic_scheduler import (
+    AssignmentResult,
+    ClassroomResource,
+    DemandCourse,
+    FitnessResult,
+    PotentialSection,
+    SectionGene,
+    TeacherResource,
+    TimeSlotResource,
+    _build_feasible_candidates,
+    _select_diverse_results,
+    evaluate_semester_schedule,
+)
 from scheduling_enrollment.models import (
     CourseGroup,
     Enrollment,
@@ -18,12 +32,114 @@ from scheduling_enrollment.models import (
     SemesterScheduleOption,
     SemesterScheduleRun,
 )
-from scheduling_enrollment.services.enrollment_service import request_student_enrollment
+from scheduling_enrollment.services.enrollment_service import (
+    assign_waiting_students_to_groups,
+    request_student_enrollment,
+)
 from scheduling_enrollment.services.scheduling_service import (
     generate_semester_schedule_options,
     get_run_assignment_summary,
+    revert_semester_schedule_option,
 )
 from teaching.models import Availability, ContractRule, Teacher
+
+
+class GeneticPlannerResourceTests(TestCase):
+    def setUp(self):
+        self.course = DemandCourse(
+            course_id=1,
+            code="SW101",
+            name="Algoritmos",
+            demand=10,
+            min_sections=1,
+            max_sections=1,
+            campus_id=1,
+        )
+        self.teacher = TeacherResource(
+            teacher_id=1,
+            label="Ana Ruiz",
+            qualified_course_ids=frozenset({1}),
+            availability=(("Monday", time(8, 0), time(12, 0)),),
+            activities=(),
+            max_teaching_hours=12,
+            min_teaching_hours=0,
+            campus_id=1,
+        )
+        self.slot = TimeSlotResource(
+            index=1,
+            day="Monday",
+            start_time=time(8, 0),
+            end_time=time(9, 30),
+        )
+
+    def test_candidates_reject_classroom_from_another_campus(self):
+        classroom = ClassroomResource(
+            classroom_id=1,
+            label="B101",
+            capacity=20,
+            classroom_type="SALON",
+            campus_id=2,
+        )
+
+        candidates = _build_feasible_candidates(
+            {1: self.course},
+            {1: self.teacher},
+            {1: classroom},
+            {1: self.slot},
+        )
+
+        self.assertEqual(candidates[1], [])
+
+    def test_uncovered_demand_uses_real_classroom_capacity(self):
+        classroom = ClassroomResource(
+            classroom_id=1,
+            label="A101",
+            capacity=5,
+            classroom_type="SALON",
+            campus_id=1,
+        )
+        result = evaluate_semester_schedule(
+            [SectionGene(True, 1, 1, 1)],
+            [PotentialSection(0, 1, "SW101", "Algoritmos", 1)],
+            {1: self.course},
+            {1: self.teacher},
+            {1: classroom},
+            {1: self.slot},
+        )
+
+        self.assertEqual(result.summary["demand_covered"], 5)
+        self.assertEqual(result.summary["uncovered_students"], 5)
+
+    def test_alternatives_prioritize_different_scores(self):
+        def build_result(score, course_id):
+            return FitnessResult(
+                score=score,
+                summary={},
+                assignments=[
+                    AssignmentResult(
+                        course_id=course_id,
+                        course_code=f"SW{course_id}",
+                        course_name="Materia",
+                        section_number=1,
+                        teacher_id=course_id,
+                        classroom_id=course_id,
+                        timeslot_index=course_id,
+                        students_assigned=10,
+                        capacity=20,
+                    )
+                ],
+            )
+
+        selected = _select_diverse_results(
+            [
+                build_result(96, 1),
+                build_result(96, 2),
+                build_result(92, 3),
+            ],
+            options_limit=2,
+        )
+
+        self.assertEqual([item.score for item in selected], [96, 92])
 
 
 class SemesterPlannerServiceTests(TestCase):
@@ -113,7 +229,10 @@ class SemesterPlannerServiceTests(TestCase):
     def test_generates_semester_run_and_applies_best_option(self):
         random.seed(7)
 
-        run = generate_semester_schedule_options(self.term.id, auto_apply_best=True)
+        run = generate_semester_schedule_options(
+            self.term.id,
+            auto_apply_best=True,
+        )
 
         self.assertIsNotNone(run)
         self.assertEqual(run.status, "ready_to_publish")
@@ -150,7 +269,10 @@ class SemesterPlannerServiceTests(TestCase):
             )
 
         random.seed(7)
-        run = generate_semester_schedule_options(self.term.id, auto_apply_best=False)
+        run = generate_semester_schedule_options(
+            self.term.id,
+            auto_apply_best=False,
+        )
 
         self.assertIsNotNone(run)
         best_option = run.options.get(is_best=True)
@@ -182,7 +304,10 @@ class SemesterPlannerServiceTests(TestCase):
     def test_assignment_summary_reports_ready_to_publish_when_everyone_is_assigned(self):
         random.seed(7)
 
-        run = generate_semester_schedule_options(self.term.id, auto_apply_best=True)
+        run = generate_semester_schedule_options(
+            self.term.id,
+            auto_apply_best=True,
+        )
         summary = get_run_assignment_summary(run)
 
         self.assertEqual(run.status, "ready_to_publish")
@@ -195,7 +320,10 @@ class SemesterPlannerServiceTests(TestCase):
     def test_assignment_summary_includes_pending_students_detail(self):
         random.seed(7)
 
-        run = generate_semester_schedule_options(self.term.id, auto_apply_best=True)
+        run = generate_semester_schedule_options(
+            self.term.id,
+            auto_apply_best=True,
+        )
         late_student = self.user_model.objects.create_user(
             email="late@test.com",
             password="secret123",
@@ -213,6 +341,56 @@ class SemesterPlannerServiceTests(TestCase):
         self.assertEqual(summary["waiting_total"], 1)
         self.assertEqual(len(summary["pending_by_student"]), 1)
         self.assertEqual(summary["pending_by_student"][0]["student_email"], "late@test.com")
+
+    def test_published_option_cannot_be_reverted(self):
+        run = SemesterScheduleRun.objects.create(
+            term=self.term,
+            status="published",
+        )
+        option = SemesterScheduleOption.objects.create(
+            run=run,
+            rank=1,
+            applied=True,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Un plan publicado no se puede revertir",
+        ):
+            revert_semester_schedule_option(option)
+
+    def test_only_one_option_per_run_can_be_selected(self):
+        run = SemesterScheduleRun.objects.create(term=self.term)
+        SemesterScheduleOption.objects.create(
+            run=run,
+            rank=1,
+            selected=True,
+        )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            SemesterScheduleOption.objects.create(
+                run=run,
+                rank=2,
+                selected=True,
+            )
+
+    def test_nrc_must_be_unique_within_term(self):
+        CourseGroup.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            term=self.term,
+            nrc="12345",
+            capacity=20,
+        )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            CourseGroup.objects.create(
+                course=self.course,
+                teacher=self.teacher,
+                term=self.term,
+                nrc="12345",
+                capacity=20,
+            )
 
 
 class EnrollmentViewTest(TestCase):
@@ -296,6 +474,179 @@ class EnrollmentViewTest(TestCase):
             ).count(),
             1,
         )
+
+    def test_database_rejects_duplicate_enrollment_request(self):
+        EnrollmentQueue.objects.create(
+            student=self.student,
+            course=self.course,
+            term=self.term,
+            status="waiting",
+        )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            EnrollmentQueue.objects.create(
+                student=self.student,
+                course=self.course,
+                term=self.term,
+                status="waiting",
+            )
+
+    def test_assignment_keeps_student_waiting_when_schedule_conflicts(self):
+        second_course = Course.objects.create(
+            name="Bases de Datos",
+            code="SW102",
+            credits=3,
+            semester=1,
+            study_plan=self.study_plan,
+        )
+        teacher = Teacher.objects.create(
+            teacher_id="DOC-CONFLICT",
+            first_name="Ana",
+            last_name="Ruiz",
+            campus=self.campus,
+        )
+        classroom = Classroom.objects.create(
+            classroom_id="A-CONFLICT",
+            block=1,
+            campus=self.campus,
+            capacity=30,
+        )
+        first_group = CourseGroup.objects.create(
+            course=self.course,
+            teacher=teacher,
+            term=self.term,
+            nrc="10001",
+            capacity=30,
+        )
+        first_schedule = ProposedSchedule.objects.create(
+            teacher=teacher,
+            term=self.term,
+        )
+        ScheduleSession.objects.create(
+            schedule=first_schedule,
+            group=first_group,
+            classroom=classroom,
+            day="Monday",
+            start_time=time(8, 0),
+            end_time=time(10, 0),
+        )
+        Enrollment.objects.create(
+            student=self.student,
+            course_group=first_group,
+            term=self.term,
+        )
+        conflicting_group = CourseGroup.objects.create(
+            course=second_course,
+            teacher=teacher,
+            term=self.term,
+            nrc="10002",
+            capacity=30,
+        )
+        conflicting_schedule = ProposedSchedule.objects.create(
+            teacher=teacher,
+            term=self.term,
+        )
+        ScheduleSession.objects.create(
+            schedule=conflicting_schedule,
+            group=conflicting_group,
+            classroom=classroom,
+            day="Monday",
+            start_time=time(9, 0),
+            end_time=time(11, 0),
+        )
+        request = EnrollmentQueue.objects.create(
+            student=self.student,
+            course=second_course,
+            term=self.term,
+            status="waiting",
+        )
+
+        assigned = assign_waiting_students_to_groups(
+            self.term,
+            course=second_course,
+        )
+
+        request.refresh_from_db()
+        self.assertEqual(assigned, 0)
+        self.assertEqual(request.status, "waiting")
+
+    def test_enrollment_view_rejects_course_outside_student_study_plan(self):
+        other_program = AcademicProgram.objects.create(
+            name="Industrial",
+            code="IND",
+            faculty=self.faculty,
+            campus=self.campus,
+        )
+        other_plan = StudyPlan.objects.create(program=other_program, version="2026")
+        unauthorized_course = Course.objects.create(
+            name="Procesos",
+            code="IND101",
+            credits=3,
+            semester=1,
+            study_plan=other_plan,
+        )
+        self.client.force_login(self.student)
+
+        response = self.client.post(
+            reverse("enrollment"),
+            {"course_id": unauthorized_course.id},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(
+            EnrollmentQueue.objects.filter(
+                student=self.student,
+                course=unauthorized_course,
+                term=self.term,
+            ).exists()
+        )
+
+    def test_admin_cannot_publish_semester_plan(self):
+        admin_user = get_user_model().objects.create_user(
+            email="admin-schedule@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="admin",
+        )
+        run = SemesterScheduleRun.objects.create(
+            term=self.term,
+            status="ready_to_publish",
+        )
+        SemesterScheduleOption.objects.create(
+            run=run,
+            rank=1,
+            applied=True,
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.post(
+            reverse("publish_semester_run", args=[run.id]),
+        )
+
+        self.assertRedirects(response, reverse("home"))
+        run.refresh_from_db()
+        self.assertEqual(run.status, "ready_to_publish")
+
+    def test_coordinator_cannot_delete_published_semester_plan(self):
+        coordinator = get_user_model().objects.create_user(
+            email="director-schedule@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="coordinator",
+        )
+        run = SemesterScheduleRun.objects.create(
+            term=self.term,
+            status="published",
+        )
+        self.client.force_login(coordinator)
+
+        response = self.client.post(
+            reverse("delete_semester_run", args=[run.id]),
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("saved_semester_run_detail", args=[run.id]),
+        )
+        self.assertTrue(SemesterScheduleRun.objects.filter(id=run.id).exists())
 
 
 class PersonalScheduleViewTest(TestCase):

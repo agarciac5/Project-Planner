@@ -5,9 +5,12 @@ import unicodedata
 from urllib.parse import urlencode
 
 import pandas as pd
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -30,6 +33,11 @@ from .forms import (
 )
 from .login import EmailLoginForm
 from .models import StudentProfile, User
+from .security import (
+    clear_failed_logins,
+    login_is_blocked,
+    record_failed_login,
+)
 from .role_access import (
     ACADEMIC_MANAGEMENT_ROLES,
     SCHEDULE_READ_ROLES,
@@ -294,11 +302,27 @@ def login_view(request):
         return redirect("home")
 
     if request.method == "POST":
+        submitted_email = request.POST.get("email", "").strip().lower()
+        if login_is_blocked(request, submitted_email):
+            form = EmailLoginForm(request.POST)
+            form.is_valid()
+            form.add_error(
+                None,
+                "Demasiados intentos fallidos. Intenta nuevamente mas tarde.",
+            )
+            return render(
+                request,
+                "access_support/login.html",
+                {"form": form},
+                status=429,
+            )
         form = EmailLoginForm(request.POST)
         if form.is_valid():
             user = form.cleaned_data["user"]
+            clear_failed_logins(request, submitted_email)
             login(request, user)
             return redirect("home")
+        record_failed_login(request, submitted_email)
     else:
         form = EmailLoginForm()
 
@@ -344,7 +368,7 @@ def _institutional_users():
     return User.objects.filter(email__iendswith=INSTITUTIONAL_EMAIL_DOMAIN).order_by("email")
 
 
-def _role_assignment_rows(users, search_term):
+def _role_assignment_rows(users, search_term, actor):
     rows = []
     for user in users:
         has_teacher_profile = bool(_teacher_profile_for_user(user))
@@ -355,6 +379,7 @@ def _role_assignment_rows(users, search_term):
                 "has_teacher_profile": has_teacher_profile,
                 "has_student_profile": has_student_profile,
                 "form": UserRoleAssignmentForm(
+                    actor=actor,
                     initial={
                         "user_id": user.id,
                         "role": user.role,
@@ -373,7 +398,7 @@ def assign_roles_view(request):
     searched = False
 
     if request.method == "POST":
-        assignment_form = UserRoleAssignmentForm(request.POST)
+        assignment_form = UserRoleAssignmentForm(request.POST, actor=request.user)
         search_form = UserRoleSearchForm(initial={"email_query": request.POST.get("search", "")})
 
         if assignment_form.is_valid():
@@ -434,7 +459,7 @@ def assign_roles_view(request):
     context.update(
         {
             "search_form": search_form,
-            "rows": _role_assignment_rows(users, query),
+            "rows": _role_assignment_rows(users, query, request.user),
             "searched": searched,
             "search_term": query,
         }
@@ -483,11 +508,48 @@ def import_view(request):
             messages.error(request, "No se subio ningun archivo")
             return render(request, "dashboard/import.html", context)
 
+        if not archivo.name.lower().endswith(".xlsx"):
+            messages.error(request, "Solo se permiten archivos Excel .xlsx")
+            return render(request, "dashboard/import.html", context)
+
+        if archivo.size > settings.FILE_UPLOAD_MAX_MEMORY_SIZE:
+            messages.error(request, "El archivo supera el tamano maximo permitido")
+            return render(request, "dashboard/import.html", context)
+
         try:
-            df = pd.read_excel(archivo)
-            df = df.drop_duplicates(subset=["CORREO_ESTUDIANTE"])
+            df = pd.read_excel(archivo, engine="openpyxl")
         except Exception:
             messages.error(request, "Error al leer el archivo Excel")
+            return render(request, "dashboard/import.html", context)
+
+        required_columns = {
+            "CORREO_ESTUDIANTE",
+            "DESCRIPCION_PROGRAMA",
+            "DESCRIPCION_SEDE",
+            "DESCRIPCION_FACULTAD",
+            "CODIGO",
+            "TIPO_DOCUMENTO",
+            "NUM_DOCUMENTO",
+            "NOMBRES",
+            "DESCRIPCION_NIVEL",
+            "JORNADA",
+        }
+        missing_columns = sorted(required_columns - set(df.columns))
+        if missing_columns:
+            messages.error(
+                request,
+                "El archivo no tiene las columnas requeridas: "
+                + ", ".join(missing_columns),
+            )
+            return render(request, "dashboard/import.html", context)
+
+        df = df.drop_duplicates(subset=["CORREO_ESTUDIANTE"])
+
+        if len(df.index) > settings.IMPORT_MAX_ROWS:
+            messages.error(
+                request,
+                f"El archivo supera el limite de {settings.IMPORT_MAX_ROWS} filas.",
+            )
             return render(request, "dashboard/import.html", context)
 
         def normalize_text(value):
@@ -507,12 +569,16 @@ def import_view(request):
         skipped_existing_count = 0
         skipped_existing_profile_count = 0
         skipped_empty_email_count = 0
+        skipped_invalid_email_count = 0
         error_count = 0
 
         for _, row in df.iterrows():
             email = str(row.get("CORREO_ESTUDIANTE", "")).strip().lower().replace(" ", "")
             if not email or email == "nan":
                 skipped_empty_email_count += 1
+                continue
+            if not _is_institutional_email(email):
+                skipped_invalid_email_count += 1
                 continue
 
             program_name = normalize_text(row.get("DESCRIPCION_PROGRAMA", ""))
@@ -555,9 +621,16 @@ def import_view(request):
                         campus=campus,
                     )
 
+                raw_student_code = row.get("CODIGO", "")
+                student_code = (
+                    ""
+                    if pd.isna(raw_student_code)
+                    else str(raw_student_code).strip()
+                )
+
                 StudentProfile.objects.create(
                     user=user,
-                    student_code=str(row.get("CODIGO", "")) or generar_codigo_estudiantil(),
+                    student_code=student_code or generar_codigo_estudiantil(),
                     document_type=str(row.get("TIPO_DOCUMENTO", "")),
                     document_number=str(row.get("NUM_DOCUMENTO", "")),
                     full_name=str(row.get("NOMBRES", "")),
@@ -582,6 +655,7 @@ def import_view(request):
             f"Omitidos por correo existente: {skipped_existing_count}. "
             f"Omitidos por usuario con perfil existente: {skipped_existing_profile_count}. "
             f"Omitidos por correo vacio: {skipped_empty_email_count}. "
+            f"Omitidos por correo no institucional: {skipped_invalid_email_count}. "
             f"Errores: {error_count}."
         )
 
@@ -720,9 +794,23 @@ def register_view(request):
             messages.error(request, "El correo ya esta registrado")
             return redirect("register")
 
-        user = User.objects.create_user(email=email, password=password, role="student")
+        try:
+            validate_password(password, user=User(email=email, role="student"))
+        except ValidationError as exc:
+            for error in exc.messages:
+                messages.error(request, error)
+            return render(request, "access_support/register.html")
+
+        user = User.objects.create_user(
+            email=email,
+            password=password,
+            role="student",
+        )
         login(request, user)
-        messages.success(request, "Usuario creado correctamente. Ahora completa tu perfil estudiantil.")
+        messages.success(
+            request,
+            "Usuario creado correctamente. Ahora completa tu perfil estudiantil.",
+        )
         return redirect("student_profile_setup")
 
     return render(request, "access_support/register.html")

@@ -26,6 +26,7 @@ class DemandCourse:
     demand: int
     min_sections: int
     max_sections: int
+    campus_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -117,10 +118,16 @@ def _build_feasible_candidates(
     """
     candidates: dict[int, list[tuple[int, int, int]]] = {}
     classroom_ids = list(classrooms.keys())
-    for course_id in demand_courses:
+    for course_id, course in demand_courses.items():
         course_candidates = []
         for teacher in teachers.values():
             if course_id not in teacher.qualified_course_ids:
+                continue
+            if (
+                course.campus_id
+                and teacher.campus_id
+                and course.campus_id != teacher.campus_id
+            ):
                 continue
             for slot in timeslots.values():
                 if not _slot_within_availability(slot, teacher):
@@ -128,6 +135,19 @@ def _build_feasible_candidates(
                 if _slot_overlaps_activity(slot, teacher):
                     continue
                 for classroom_id in classroom_ids:
+                    classroom = classrooms[classroom_id]
+                    if (
+                        course.campus_id
+                        and classroom.campus_id
+                        and course.campus_id != classroom.campus_id
+                    ):
+                        continue
+                    if (
+                        teacher.campus_id
+                        and classroom.campus_id
+                        and teacher.campus_id != classroom.campus_id
+                    ):
+                        continue
                     course_candidates.append((teacher.teacher_id, classroom_id, slot.index))
         candidates[course_id] = course_candidates
     return candidates
@@ -244,16 +264,22 @@ def evaluate_semester_schedule(
     classroom_slots: dict[int, set[int]] = {}
     teacher_hours:   dict[int, float]    = {}
 
+    assigned_by_course: dict[int, int] = {}
+    for assignment in assignments:
+        assigned_by_course[assignment.course_id] = (
+            assigned_by_course.get(assignment.course_id, 0)
+            + assignment.students_assigned
+        )
+
     for course_id, course in demand_courses.items():
         open_count = len(open_indexes_by_course.get(course_id, []))
-        if course.demand >= 5 and open_count == 0:
-            summary["uncovered_students"] += course.demand
-            penalties["uncovered_demand"] += 25
-            score -= 25
-        if open_count < course.min_sections:
-            uncovered_capacity = (course.min_sections - open_count) * 20
-            uncovered = min(course.demand, uncovered_capacity)
-            penalty = 15 + uncovered * 0.8
+        covered_for_course = min(
+            course.demand,
+            assigned_by_course.get(course_id, 0),
+        )
+        uncovered = max(0, course.demand - covered_for_course)
+        if uncovered:
+            penalty = (25 if open_count == 0 else 15) + uncovered * 0.8
             summary["uncovered_students"] += uncovered
             penalties["uncovered_demand"] += penalty
             score -= penalty
@@ -343,7 +369,10 @@ def evaluate_semester_schedule(
             penalties["under_min_hours"] += penalty
             score -= penalty
 
-    covered     = sum(a.students_assigned for a in assignments)
+    covered = sum(
+        min(course.demand, assigned_by_course.get(course_id, 0))
+        for course_id, course in demand_courses.items()
+    )
     total_demand = sum(course.demand for course in demand_courses.values())
     summary["demand_covered"]  = covered
     summary["demand_total"]    = total_demand
@@ -421,6 +450,7 @@ def _select_diverse_results(
     ordered_results: list[FitnessResult],
     options_limit: int,
     min_distance: float = 0.15,
+    min_score_gap: float = 0.5,
 ) -> list[FitnessResult]:
     selected: list[FitnessResult] = []
     seen_signatures: set[tuple] = set()
@@ -429,7 +459,15 @@ def _select_diverse_results(
         signature = _result_signature(result)
         if signature in seen_signatures:
             continue
-        if all(_result_distance(result, chosen) >= min_distance for chosen in selected):
+        score_is_distinct = all(
+            abs(result.score - chosen.score) >= min_score_gap
+            for chosen in selected
+        )
+        schedule_is_distinct = all(
+            _result_distance(result, chosen) >= min_distance
+            for chosen in selected
+        )
+        if score_is_distinct and schedule_is_distinct:
             selected.append(result)
             seen_signatures.add(signature)
         if len(selected) == options_limit:
@@ -613,6 +651,7 @@ def run_semester_planner(
         potential_sections, schedulable_demand, feasible_candidates, population_size,
     )
     archive: dict[str, FitnessResult] = {}
+    score_archive: dict[float, FitnessResult] = {}
 
     def _signature(chromosome: list[SectionGene]) -> str:
         return "|".join(
@@ -642,6 +681,13 @@ def run_semester_planner(
             signature = _signature(population[idx])
             archive.setdefault(signature, fitness_results[idx])
 
+        # Conserva también una solución representativa por cada medio punto.
+        # Sin este archivo, muchas variantes óptimas con el mismo score terminan
+        # desplazando a todas las alternativas con compromisos diferentes.
+        for result in fitness_results:
+            score_bucket = round(result.score * 2) / 2
+            score_archive.setdefault(score_bucket, result)
+
         if len(archive) > 250:
             trimmed_items = sorted(
                 archive.items(), key=lambda item: item[1].score, reverse=True,
@@ -669,5 +715,9 @@ def run_semester_planner(
                 )
         population = new_population
 
-    ordered = sorted(archive.values(), key=lambda result: result.score, reverse=True)
+    ordered = sorted(
+        [*archive.values(), *score_archive.values()],
+        key=lambda result: result.score,
+        reverse=True,
+    )
     return _select_diverse_results(ordered, options_limit=options_limit)

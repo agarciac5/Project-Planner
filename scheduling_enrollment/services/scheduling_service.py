@@ -1,6 +1,7 @@
 import math
 from datetime import time
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -92,7 +93,9 @@ def _build_demand_courses(term: AcademicTerm, course_ids: set[int] | None = None
         waiting = waiting.filter(course__in=course_ids)
     courses = {
         course.id: course
-        for course in Course.objects.filter(id__in=[item["course"] for item in waiting])
+        for course in Course.objects.filter(
+            id__in=[item["course"] for item in waiting]
+        ).select_related("study_plan__program")
     }
 
     demand_courses = []
@@ -111,6 +114,7 @@ def _build_demand_courses(term: AcademicTerm, course_ids: set[int] | None = None
                 demand=demand,
                 min_sections=min_sections,
                 max_sections=max_sections,
+                campus_id=course.study_plan.program.campus_id,
             )
         )
     return demand_courses
@@ -357,7 +361,6 @@ def get_run_assignment_summary(run: SemesterScheduleRun) -> dict:
     }
 
 
-@transaction.atomic
 def generate_semester_schedule_options(
     term_id: int,
     auto_apply_best: bool = False,
@@ -368,6 +371,14 @@ def generate_semester_schedule_options(
     if not demand_courses:
         return None
     total_demand = sum(course.demand for course in demand_courses)
+    if len(demand_courses) > settings.SCHEDULE_MAX_COURSES:
+        raise ValueError(
+            "La cantidad de materias supera el limite operativo configurado."
+        )
+    if total_demand > settings.SCHEDULE_MAX_DEMAND:
+        raise ValueError(
+            "La demanda supera el limite operativo configurado."
+        )
 
     teacher_resources   = _build_teacher_resources(
         term, demanded_course_ids={course.course_id for course in demand_courses},
@@ -388,6 +399,9 @@ def generate_semester_schedule_options(
         teachers=teacher_resources,
         classrooms=classroom_resources,
         timeslots=timeslots,
+        population_size=settings.SCHEDULE_POPULATION_SIZE,
+        generations=settings.SCHEDULE_GENERATIONS,
+        options_limit=settings.SCHEDULE_OPTIONS_LIMIT,
     )
     if not results:
         return None
@@ -397,39 +411,49 @@ def generate_semester_schedule_options(
     course_map    = {course.id: course       for course in Course.objects.filter(id__in=[c.course_id for c in schedulable_courses])}
     timeslot_map  = {slot.index: slot        for slot in timeslots}
 
-    run = SemesterScheduleRun.objects.create(term=term)
-    for rank, result in enumerate(results, start=1):
-        result.summary["unschedulable_courses"]       = unschedulable_courses
-        result.summary["unschedulable_course_count"]  = len(unschedulable_courses)
-        result.summary["unschedulable_demand"]        = unschedulable_demand
-        result.summary["schedulable_demand_total"]    = result.summary["demand_total"]
-        result.summary["demand_total"]                = total_demand
-        result.summary["uncovered_students"]         += unschedulable_demand
-        option = SemesterScheduleOption.objects.create(
-            run=run,
-            rank=rank,
-            score=result.score,
-            demand_covered=result.summary["demand_covered"],
-            demand_total=total_demand,
-            sections_opened=result.summary["sections_opened"],
-            is_best=rank == 1,
-            selected=False,
-            summary=result.summary,
-        )
-        for assignment in result.assignments:
-            slot = timeslot_map[assignment.timeslot_index]
-            SemesterScheduleAssignment.objects.create(
-                option=option,
-                course=course_map[assignment.course_id],
-                teacher=teacher_map.get(assignment.teacher_id),
-                classroom=classroom_map.get(assignment.classroom_id),
-                section_number=assignment.section_number,
-                day=slot.day,
-                start_time=slot.start_time,
-                end_time=slot.end_time,
-                students_assigned=assignment.students_assigned,
-                capacity=assignment.capacity,
+    with transaction.atomic():
+        run = SemesterScheduleRun.objects.create(term=term)
+        for rank, result in enumerate(results, start=1):
+            result.summary["unschedulable_courses"] = unschedulable_courses
+            result.summary["unschedulable_course_count"] = len(
+                unschedulable_courses
             )
+            result.summary["unschedulable_demand"] = unschedulable_demand
+            result.summary["schedulable_demand_total"] = result.summary[
+                "demand_total"
+            ]
+            result.summary["demand_total"] = total_demand
+            result.summary["uncovered_students"] += unschedulable_demand
+            result.summary["planner_parameters"] = {
+                "population_size": settings.SCHEDULE_POPULATION_SIZE,
+                "generations": settings.SCHEDULE_GENERATIONS,
+                "options_limit": settings.SCHEDULE_OPTIONS_LIMIT,
+            }
+            option = SemesterScheduleOption.objects.create(
+                run=run,
+                rank=rank,
+                score=result.score,
+                demand_covered=result.summary["demand_covered"],
+                demand_total=total_demand,
+                sections_opened=result.summary["sections_opened"],
+                is_best=rank == 1,
+                selected=False,
+                summary=result.summary,
+            )
+            for assignment in result.assignments:
+                slot = timeslot_map[assignment.timeslot_index]
+                SemesterScheduleAssignment.objects.create(
+                    option=option,
+                    course=course_map[assignment.course_id],
+                    teacher=teacher_map.get(assignment.teacher_id),
+                    classroom=classroom_map.get(assignment.classroom_id),
+                    section_number=assignment.section_number,
+                    day=slot.day,
+                    start_time=slot.start_time,
+                    end_time=slot.end_time,
+                    students_assigned=assignment.students_assigned,
+                    capacity=assignment.capacity,
+                )
 
     if auto_apply_best:
         apply_semester_schedule_run(run)
@@ -452,6 +476,16 @@ def apply_semester_schedule_run(
         return best_option
 
     term = run.term
+    other_applied_run_exists = SemesterScheduleOption.objects.filter(
+        run__term=term,
+        applied=True,
+    ).exclude(run=run).exists()
+    if other_applied_run_exists:
+        raise ValueError(
+            "Ya existe otro plan aplicado para este periodo. "
+            "Debe revertirse antes de aplicar uno nuevo."
+        )
+
     schedules_by_teacher: dict[int, ProposedSchedule] = {}
 
     for assignment in best_option.assignments.all():
@@ -509,6 +543,11 @@ def apply_semester_schedule_run(
 
 @transaction.atomic
 def revert_semester_schedule_option(option: SemesterScheduleOption) -> SemesterScheduleOption:
+    if option.run.status == "published":
+        raise ValueError(
+            "Un plan publicado no se puede revertir. Debe conservarse como evidencia."
+        )
+
     assignments  = list(option.assignments.select_related("generated_group", "generated_schedule"))
     group_ids    = [a.generated_group_id    for a in assignments if a.generated_group_id]
     schedule_ids = [a.generated_schedule_id for a in assignments if a.generated_schedule_id]

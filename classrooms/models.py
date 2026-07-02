@@ -51,6 +51,12 @@ class TimeSlot(models.Model):
     class Meta:
         unique_together = ("day", "start_time", "end_time")
         ordering = ["day", "start_time"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_time__gt=models.F("start_time")),
+                name="timeslot_end_after_start",
+            )
+        ]
 
     def __str__(self):
         return f"{self.get_day_display()} {self.start_time}-{self.end_time}"

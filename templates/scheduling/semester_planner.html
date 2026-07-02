@@ -48,7 +48,9 @@
 <div class="results-header">
   <div>
     <h2>Resultado para {{ run.term.name }}</h2>
-    <p class="subtitle">Estado del plan: {{ run.get_status_display }}</p>
+    <p class="subtitle">
+      Estado del plan: {{ run.get_status_display }}
+    </p>
   </div>
   <div class="results-actions">
     {% if run.status == "draft" %}

@@ -1,14 +1,45 @@
+from datetime import date
+
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
 from access_support.models import User
 from academic_core.models import (
     AcademicProgram,
+    AcademicTerm,
     Campus,
     Course,
     Faculty,
     StudyPlan,
 )
+
+
+class AcademicDataIntegrityTest(TestCase):
+    def test_only_one_academic_term_can_be_active(self):
+        AcademicTerm.objects.create(
+            name="2026-1",
+            start_date=date(2026, 1, 15),
+            end_date=date(2026, 5, 15),
+            active=True,
+        )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            AcademicTerm.objects.create(
+                name="2026-2",
+                start_date=date(2026, 7, 15),
+                end_date=date(2026, 11, 15),
+                active=True,
+            )
+
+    def test_academic_term_end_date_must_follow_start_date(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            AcademicTerm.objects.create(
+                name="Invalido",
+                start_date=date(2026, 5, 15),
+                end_date=date(2026, 1, 15),
+                active=False,
+            )
 
 
 class CourseCrudViewTest(TestCase):

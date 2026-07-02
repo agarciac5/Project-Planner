@@ -2,8 +2,9 @@ from unittest.mock import patch
 
 import pandas as pd
 from django.contrib.messages import get_messages
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from access_support.models import StudentProfile, User
@@ -40,9 +41,24 @@ class RegisterViewTest(TestCase):
         self.assertFalse(User.objects.filter(email="ana@gmail.com").exists())
         self.assertContains(response, "Solo se permiten correos institucionales")
 
+    def test_register_rejects_weak_password(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "email": "ana@uniminuto.edu.co",
+                "password": "12345",
+                "confirm": "12345",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="ana@uniminuto.edu.co").exists())
+        self.assertContains(response, "too short")
+
 
 class LoginViewTest(TestCase):
     def setUp(self):
+        cache.clear()
         self.user = User.objects.create_user(
             email="docente@uniminuto.edu.co",
             password="ClaveSegura123",
@@ -72,6 +88,33 @@ class LoginViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("_auth_user_id", self.client.session)
         self.assertContains(response, "Credenciales incorrectas")
+
+    @override_settings(LOGIN_MAX_ATTEMPTS=3, LOGIN_LOCKOUT_SECONDS=60)
+    def test_login_temporarily_blocks_repeated_failures(self):
+        for _ in range(3):
+            self.client.post(
+                reverse("login"),
+                {
+                    "email": self.user.email,
+                    "password": "incorrecta",
+                },
+            )
+
+        response = self.client.post(
+            reverse("login"),
+            {
+                "email": self.user.email,
+                "password": "ClaveSegura123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertContains(
+            response,
+            "Demasiados intentos fallidos",
+            status_code=429,
+        )
 
 
 class StudentProfileSetupViewTest(TestCase):
@@ -145,7 +188,7 @@ class ImportViewTest(TestCase):
         mock_read_excel.return_value = pd.DataFrame(
             [
                 {
-                    "CORREO_ESTUDIANTE": "estudiante1@correo.com",
+                    "CORREO_ESTUDIANTE": "estudiante1@uniminuto.edu.co",
                     "DESCRIPCION_PROGRAMA": "ingenieria de software",
                     "DESCRIPCION_SEDE": "Sede Principal",
                     "DESCRIPCION_FACULTAD": "Facultad de Ingenieria",
@@ -171,7 +214,11 @@ class ImportViewTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(User.objects.filter(email="estudiante1@correo.com").exists())
+        self.assertTrue(
+            User.objects.filter(
+                email="estudiante1@uniminuto.edu.co"
+            ).exists()
+        )
         self.assertTrue(StudentProfile.objects.filter(student_code="EST-001").exists())
         self.assertTrue(Campus.objects.filter(name="Sede Principal").exists())
         self.assertTrue(Faculty.objects.filter(name="Facultad de Ingenieria").exists())
@@ -188,6 +235,49 @@ class ImportViewTest(TestCase):
         self.assertIn("No se subio ningun archivo", messages)
         self.assertEqual(User.objects.filter(role="student").count(), 0)
         self.assertEqual(StudentProfile.objects.count(), 0)
+
+    def test_import_rejects_non_xlsx_file(self):
+        response = self.client.post(
+            reverse("import"),
+            {
+                "archivo": SimpleUploadedFile(
+                    "estudiantes.csv",
+                    b"correo,nombre",
+                    content_type="text/csv",
+                )
+            },
+        )
+        messages = [
+            message.message for message in get_messages(response.wsgi_request)
+        ]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Solo se permiten archivos Excel .xlsx", messages)
+
+    @patch("access_support.views.pd.read_excel")
+    def test_import_rejects_missing_required_columns(self, mock_read_excel):
+        mock_read_excel.return_value = pd.DataFrame(
+            [{"CORREO_ESTUDIANTE": "ana@uniminuto.edu.co"}]
+        )
+
+        response = self.client.post(
+            reverse("import"),
+            {
+                "archivo": SimpleUploadedFile(
+                    "estudiantes.xlsx",
+                    b"contenido",
+                    content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+        )
+        messages = [
+            message.message for message in get_messages(response.wsgi_request)
+        ]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            any("no tiene las columnas requeridas" in message for message in messages)
+        )
 
 
 class AssignRolesViewTest(TestCase):
@@ -247,8 +337,33 @@ class AssignRolesViewTest(TestCase):
         self.assertContains(response, "ana.perez@uniminuto.edu.co")
         self.assertNotContains(response, "luis.gomez@uniminuto.edu.co")
 
-    def test_admin_can_assign_any_role_including_coordinator(self):
+    def test_admin_cannot_assign_coordinator_role(self):
         self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse("assign_roles"),
+            {
+                "user_id": self.target_user.id,
+                "role": "coordinator",
+                "search": "ana.perez",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.target_user.refresh_from_db()
+        self.assertEqual(self.target_user.role, "student")
+        self.assertContains(
+            response,
+            "Solo un director academico puede asignar el rol de director",
+        )
+
+    def test_coordinator_can_assign_coordinator_role(self):
+        coordinator_user = User.objects.create_user(
+            email="director.roles@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="coordinator",
+        )
+        self.client.force_login(coordinator_user)
 
         response = self.client.post(
             reverse("assign_roles"),
@@ -265,6 +380,31 @@ class AssignRolesViewTest(TestCase):
         )
         self.target_user.refresh_from_db()
         self.assertEqual(self.target_user.role, "coordinator")
+
+    def test_admin_cannot_modify_existing_coordinator(self):
+        coordinator_user = User.objects.create_user(
+            email="director.protected@uniminuto.edu.co",
+            password="ClaveSegura123",
+            role="coordinator",
+        )
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse("assign_roles"),
+            {
+                "user_id": coordinator_user.id,
+                "role": "student",
+                "search": "director.protected",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        coordinator_user.refresh_from_db()
+        self.assertEqual(coordinator_user.role, "coordinator")
+        self.assertContains(
+            response,
+            "Solo un director academico puede modificar a otro director",
+        )
 
     def test_assigning_teacher_role_creates_teacher_profile(self):
         self.client.force_login(self.admin_user)

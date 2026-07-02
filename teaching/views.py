@@ -1,5 +1,8 @@
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.dateparse import parse_time
+from django.views.decorators.http import require_POST
 
 from access_support.forms import TeacherForm
 from access_support.models import User
@@ -30,6 +33,17 @@ def _ensure_teacher_user(teacher):
     return user
 
 
+def _build_valid_availability(teacher, day, start_time, end_time):
+    availability = Availability(
+        teacher=teacher,
+        day=day,
+        start_time=parse_time(start_time),
+        end_time=parse_time(end_time),
+    )
+    availability.full_clean()
+    return availability
+
+
 @roles_required(*ACADEMIC_MANAGEMENT_ROLES)
 def teachers_view(request):
     teachers = Teacher.objects.select_related("user", "program", "faculty", "campus", "contract").order_by("id")
@@ -48,9 +62,19 @@ def teacher_create_view(request):
             start_time = request.POST.get("start_time")
             end_time = request.POST.get("end_time")
             if day and start_time and end_time:
-                Availability.objects.create(
-                    teacher=teacher, day=day, start_time=start_time, end_time=end_time
-                )
+                try:
+                    _build_valid_availability(
+                        teacher, day, start_time, end_time
+                    ).save()
+                except ValidationError as exc:
+                    generated_user = teacher.user
+                    teacher.delete()
+                    if generated_user and generated_user.email.endswith(
+                        "@autogen.local"
+                    ):
+                        generated_user.delete()
+                    form.add_error(None, exc)
+                    return render(request, "crud/form.html", {"form": form})
 
             messages.success(request, "Docente creado correctamente con disponibilidad")
             return redirect("teacher_list")
@@ -69,10 +93,13 @@ def add_availability(request, teacher_id):
         end_time = request.POST.get("end_time")
 
         if day and start_time and end_time:
-            Availability.objects.create(
-                teacher=teacher, day=day, start_time=start_time, end_time=end_time
-            )
-            messages.success(request, "Disponibilidad agregada correctamente.")
+            try:
+                _build_valid_availability(
+                    teacher, day, start_time, end_time
+                ).save()
+                messages.success(request, "Disponibilidad agregada correctamente.")
+            except ValidationError as exc:
+                messages.error(request, " ".join(exc.messages))
 
     return redirect("teacher_list")
 
@@ -94,6 +121,7 @@ def teacher_edit_view(request, teacher_id):
 
 
 @roles_required(*ACADEMIC_MANAGEMENT_ROLES)
+@require_POST
 def teacher_delete_view(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
     teacher.delete()
