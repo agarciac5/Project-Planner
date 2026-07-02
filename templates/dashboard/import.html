@@ -1,55 +1,170 @@
 {% extends 'base/base.html' %}
 {% block title %}Importar | UNIMINUTO Planner{% endblock %}
+
 {% block content %}
 <section class="page-header">
     <div>
         <p class="eyebrow">Importar</p>
         <h2>Cargar documentos</h2>
+        <p class="import-subtitle">Carga estudiantes desde un archivo Excel institucional.</p>
     </div>
 </section>
 
 <section class="card import-card">
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" id="excel-import-form" data-import-form>
         {% csrf_token %}
 
         <div class="form-grid two">
             <label class="field">
                 <span>Tipo de archivo</span>
-                <select>
+                <select aria-label="Tipo de archivo">
                     <option>Excel (.xlsx)</option>
                 </select>
             </label>
 
             <label class="field">
                 <span>Archivo</span>
-                <input type="file" name="archivo" accept=".xlsx" required>
+                <input
+                    type="file"
+                    name="archivo"
+                    id="excel-file-input"
+                    accept=".xlsx"
+                    required
+                    aria-describedby="excel-file-help selected-file-name"
+                >
+                <small id="excel-file-help">Solo archivos .xlsx de hasta 5 MB.</small>
+                <small id="selected-file-name" class="selected-file-name" aria-live="polite"></small>
             </label>
         </div>
 
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary" id="import-submit-button">
             Importar documentos
         </button>
     </form>
 </section>
-{% endblock %}
 
 {% if success_message %}
+<section class="import-result import-result-success" role="status">
+    <h3>Importacion finalizada</h3>
     <p>{{ success_message }}</p>
+</section>
 {% endif %}
 
 {% if resultados %}
-    <h3>Usuarios creados</h3>
-    <table border="1">
-        <tr>
-            <th>Email</th>
-            <th>Contraseña</th>
-        </tr>
-
-        {% for r in resultados %}
-        <tr>
-            <td>{{ r.email }}</td>
-            <td>{{ r.password }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+<section class="card import-results">
+    <h3>Resultado por usuario</h3>
+    <div class="import-table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Contraseña temporal o resultado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for resultado in resultados %}
+                <tr>
+                    <td>{{ resultado.email }}</td>
+                    <td>{{ resultado.password }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% endif %}
+
+<div
+    class="import-overlay"
+    id="import-overlay"
+    aria-hidden="true"
+    aria-live="assertive"
+    hidden
+>
+    <div class="import-progress-panel">
+        <div class="import-progress-header">
+            <strong>IMPORTING...</strong>
+            <span id="import-progress-percent">0%</span>
+        </div>
+        <div
+            class="import-progress-track"
+            id="import-progress-track"
+            role="progressbar"
+            aria-label="Progreso de importacion"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+        >
+            <div class="import-progress-fill" id="import-progress-fill"></div>
+        </div>
+        <p>Validando y registrando estudiantes. No cierres esta ventana.</p>
+    </div>
+</div>
+
+<style>
+.page-header{margin-bottom:1.5rem}.page-header h2{margin:.1rem 0;font-size:1.8rem}.import-subtitle{margin:.35rem 0 0;color:#64748b}.import-card,.import-results{background:#fff;border:1px solid #e1e7ee;border-radius:14px;padding:1.35rem;margin-bottom:1.5rem}.form-grid.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-bottom:1.1rem}.field{display:flex;flex-direction:column;gap:.45rem}.field>span{font-weight:700;color:#273449;font-size:.85rem}.field select,.field input{width:100%;box-sizing:border-box;padding:.68rem .75rem;border:1px solid #cad3df;border-radius:8px;background:#fff}.field small{color:#6b7788}.selected-file-name{color:#0756d8!important;font-weight:700}.btn{border:0;border-radius:8px;padding:.7rem 1.1rem;font-weight:700;cursor:pointer}.btn-primary{background:#0756d8;color:#fff}.btn:disabled{opacity:.65;cursor:wait}.import-result{border-radius:12px;padding:1rem 1.15rem;margin-bottom:1.5rem}.import-result h3,.import-result p{margin:.15rem 0}.import-result-success{background:#eaf8ef;border:1px solid #b9e5c8;color:#175f36}.import-results h3{margin-top:0}.import-table-scroll{overflow-x:auto}.import-results table{width:100%;border-collapse:collapse}.import-results th,.import-results td{padding:.7rem;text-align:left;border-bottom:1px solid #edf1f5}.import-results th{background:#f7f9fc;color:#536174}
+.import-overlay[hidden]{display:none}.import-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:1.5rem;background:rgba(2,6,14,.92);backdrop-filter:blur(5px)}.import-progress-panel{width:min(440px,90vw);color:#fff}.import-progress-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.55rem;font-size:1.15rem;letter-spacing:.02em}.import-progress-track{height:16px;border-radius:999px;background:#6c6c70;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.45)}.import-progress-fill{width:0;height:100%;border-radius:inherit;background:#fff;transition:width .22s ease}.import-progress-panel p{margin:.75rem 0 0;color:#c8ced8;font-size:.83rem;text-align:center}.importing-active{overflow:hidden}
+@media(max-width:700px){.form-grid.two{grid-template-columns:1fr}.import-progress-header{font-size:1rem}}
+@media(prefers-reduced-motion:reduce){.import-progress-fill{transition:none}}
+</style>
+
+<script>
+(() => {
+    const form = document.querySelector("[data-import-form]");
+    const fileInput = document.getElementById("excel-file-input");
+    const fileName = document.getElementById("selected-file-name");
+    const submitButton = document.getElementById("import-submit-button");
+    const overlay = document.getElementById("import-overlay");
+    const percentLabel = document.getElementById("import-progress-percent");
+    const progressTrack = document.getElementById("import-progress-track");
+    const progressFill = document.getElementById("import-progress-fill");
+
+    if (!form || !fileInput || !overlay) return;
+
+    let progressTimer;
+
+    const setProgress = (value) => {
+        const boundedValue = Math.max(0, Math.min(100, value));
+        percentLabel.textContent = `${boundedValue}%`;
+        progressFill.style.width = `${boundedValue}%`;
+        progressTrack.setAttribute("aria-valuenow", String(boundedValue));
+    };
+
+    const resetImportState = () => {
+        window.clearInterval(progressTimer);
+        overlay.hidden = true;
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("importing-active");
+        submitButton.disabled = false;
+        setProgress(0);
+    };
+
+    fileInput.addEventListener("change", () => {
+        fileName.textContent = fileInput.files.length
+            ? `Seleccionado: ${fileInput.files[0].name}`
+            : "";
+    });
+
+    form.addEventListener("submit", () => {
+        overlay.hidden = false;
+        overlay.setAttribute("aria-hidden", "false");
+        document.body.classList.add("importing-active");
+        submitButton.disabled = true;
+        setProgress(4);
+
+        let progress = 4;
+        progressTimer = window.setInterval(() => {
+            if (progress >= 94) {
+                window.clearInterval(progressTimer);
+                return;
+            }
+            const remaining = 94 - progress;
+            progress += Math.max(1, Math.ceil(remaining * 0.08));
+            setProgress(Math.min(progress, 94));
+        }, 180);
+    });
+
+    window.addEventListener("pageshow", resetImportState);
+})();
+</script>
+{% endblock %}

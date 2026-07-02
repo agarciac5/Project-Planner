@@ -181,6 +181,16 @@ class ImportViewTest(TestCase):
         )
         self.client.force_login(self.admin_user)
 
+    def test_import_page_includes_progress_overlay(self):
+        response = self.client.get(reverse("import"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "IMPORTING...")
+        self.assertContains(response, 'id="import-progress-track"')
+        self.assertContains(response, 'role="progressbar"')
+        self.assertContains(response, 'aria-valuenow="0"')
+        self.assertContains(response, 'data-import-form')
+
     @patch("access_support.views.pd.read_excel")
     def test_import_creates_student_and_related_catalog_records_for_supported_program(
         self, mock_read_excel
@@ -225,6 +235,8 @@ class ImportViewTest(TestCase):
         self.assertTrue(
             AcademicProgram.objects.filter(name="ingenieria de software").exists()
         )
+        self.assertContains(response, "Importacion finalizada")
+        self.assertContains(response, "estudiante1@uniminuto.edu.co")
 
     def test_import_returns_error_when_file_is_missing(self):
         response = self.client.post(reverse("import"), {})
