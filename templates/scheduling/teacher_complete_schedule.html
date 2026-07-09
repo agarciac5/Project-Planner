@@ -1,0 +1,100 @@
+{% extends "base/base.html" %}
+{% block title %}Horario Docente Completo{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Horario Docente Completo</h1>
+  <p class="subtitle">Consulta en una sola vista las clases y actividades registradas de cada docente por periodo.</p>
+</div>
+
+<div class="card">
+  <form method="get">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="teacher_id">Docente</label>
+        <select name="teacher_id" id="teacher_id">
+          {% for teacher in teachers %}
+            <option value="{{ teacher.id }}" {% if selected_teacher and teacher.id == selected_teacher.id %}selected{% endif %}>
+              {{ teacher.first_name }} {{ teacher.last_name }} ({{ teacher.teacher_id }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="term_id">Periodo academico</label>
+        <select name="term_id" id="term_id">
+          {% for term in terms %}
+            <option value="{{ term.id }}" {% if selected_term and term.id == selected_term.id %}selected{% endif %}>
+              {{ term.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Consultar horario</button>
+  </form>
+</div>
+
+{% if selected_teacher and selected_term %}
+<div class="results-header">
+  <div>
+    <h2>{{ selected_teacher.first_name }} {{ selected_teacher.last_name }} - {{ selected_term.name }}</h2>
+    <p class="subtitle">
+      {% if selected_schedule %}
+        Horario vigente: {{ selected_schedule.get_status_display }}{% if selected_schedule.rank %} | Propuesta {{ selected_schedule.rank }}{% endif %}
+      {% else %}
+        Sin horario generado, mostrando solo actividades registradas.
+      {% endif %}
+    </p>
+  </div>
+  <div class="summary-pills">
+    <span class="pill">{{ class_count }} clases</span>
+    <span class="pill pill-secondary">{{ activity_count }} actividades</span>
+  </div>
+</div>
+
+{% if rows %}
+<div class="card">
+  <table class="schedule-table">
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Codigo</th>
+        <th>Nombre</th>
+        <th>Seccion / NRC</th>
+        <th>Dia</th>
+        <th>Hora</th>
+        <th>Ubicacion</th>
+        <th>Estado</th>
+        <th>Notas</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td><span class="kind-pill {{ row.kind_class }}">{{ row.kind }}</span></td>
+        <td>{% if row.course_code %}<code>{{ row.course_code }}</code>{% else %}-{% endif %}</td>
+        <td>{{ row.course_name }}</td>
+        <td>{{ row.section }}</td>
+        <td>{{ row.day }}</td>
+        <td>{{ row.start_time }} - {{ row.end_time }}</td>
+        <td>{{ row.location }}</td>
+        <td>{{ row.status }}</td>
+        <td>{{ row.notes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card empty-card">
+  <h3>Sin horario registrado</h3>
+  <p>No hay clases ni actividades registradas para este docente en el periodo seleccionado.</p>
+</div>
+{% endif %}
+{% endif %}
+
+<style>
+.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.4rem;margin-bottom:1.5rem}.form-row{display:flex;gap:1rem;flex-wrap:wrap}.form-group{display:flex;flex-direction:column;gap:.45rem;min-width:240px;flex:1}.form-group select{padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:8px}.btn{padding:.65rem 1.15rem;border:none;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}.btn-primary{background:#0f766e;color:#fff}.results-header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem}.summary-pills{display:flex;gap:.6rem;flex-wrap:wrap}.pill{padding:.3rem .7rem;border-radius:999px;background:#dcfce7;color:#166534;font-weight:600}.pill-secondary{background:#e0f2fe;color:#075985}.schedule-table{width:100%;border-collapse:collapse}.schedule-table th,.schedule-table td{padding:.7rem;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}.schedule-table th{background:#f8fafc}.kind-pill{padding:.25rem .6rem;border-radius:999px;font-weight:600;font-size:.85rem}.kind-class{background:#ede9fe;color:#5b21b6}.kind-activity{background:#fef3c7;color:#92400e}.empty-card{text-align:center}code{background:#f1f5f9;padding:.15rem .3rem;border-radius:4px}
+</style>
+{% endblock %}

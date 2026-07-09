@@ -1,6 +1,6 @@
 {% extends 'base/base.html' %}
 
-{% block title %}Login | ITM Planner{% endblock %}
+{% block title %}Login | Uniminuto Planner{% endblock %}
 
 {% block page_class %}page-centered{% endblock %}
 
@@ -26,9 +26,9 @@
 
         <!-- ERRORES DEL FORM -->
         {% if form.errors %}
-            <div class="alert-danger">
-                Credenciales incorrectas
-            </div>
+            {% for error in form.non_field_errors %}
+                <div class="alert-danger">{{ error }}</div>
+            {% endfor %}
         {% endif %}
 
         <form method="POST">

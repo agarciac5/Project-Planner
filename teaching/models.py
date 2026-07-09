@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from academic_core.models import AcademicProgram, Faculty, Campus
 
@@ -16,6 +17,13 @@ class ContractRule(models.Model):
 
 
 class Teacher(models.Model):
+    user = models.OneToOneField(
+        "access_support.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="teacher_profile",
+    )
     teacher_id = models.CharField(max_length=20, unique=True)
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -63,6 +71,32 @@ class Availability(models.Model):
 
     class Meta:
         unique_together = ("teacher", "day", "start_time", "end_time")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_time__gt=models.F("start_time")),
+                name="availability_end_after_start",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            raise ValidationError(
+                {"end_time": "La hora final debe ser posterior a la hora inicial."}
+            )
+        if self.teacher_id and self.day and self.start_time and self.end_time:
+            overlaps = Availability.objects.filter(
+                teacher_id=self.teacher_id,
+                day=self.day,
+                start_time__lt=self.end_time,
+                end_time__gt=self.start_time,
+            )
+            if self.pk:
+                overlaps = overlaps.exclude(pk=self.pk)
+            if overlaps.exists():
+                raise ValidationError(
+                    "La disponibilidad se cruza con otra franja del docente."
+                )
 
     def __str__(self):
         return f"{self.teacher} - {self.day} ({self.start_time}-{self.end_time})"

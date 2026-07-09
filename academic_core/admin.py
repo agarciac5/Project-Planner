@@ -6,7 +6,7 @@ from .models import (
     AcademicTerm,
     StudyPlan,
     Course,
-    CourseGroup,
+    CurriculumCourseGroup,
     CourseComponent,
 )
 
@@ -47,9 +47,8 @@ class CourseComponentAdmin(admin.ModelAdmin):
     list_display = ("name",)
 
 
-@admin.register(CourseGroup)
+@admin.register(CurriculumCourseGroup)
 class CourseGroupAdmin(admin.ModelAdmin):
-    # Este es el CourseGroup de academic_core (para malla curricular)
     verbose_name = "Grupo curricular"
     list_display = ("course", "term", "group_number", "capacity")
     list_filter = ("term",)

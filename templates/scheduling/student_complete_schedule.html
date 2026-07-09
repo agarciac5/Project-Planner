@@ -1,0 +1,94 @@
+{% extends "base/base.html" %}
+{% block title %}Horario Estudiantil{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Horario Estudiantil</h1>
+  <p class="subtitle">Consulta el horario consolidado de cada estudiante por periodo academico.</p>
+</div>
+
+<div class="card">
+  <form method="get">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="student_id">Estudiante</label>
+        <select name="student_id" id="student_id">
+          {% for student in students %}
+            <option value="{{ student.id }}" {% if selected_student and student.id == selected_student.id %}selected{% endif %}>
+              {{ student.full_name|default:student.user.email }} ({{ student.student_code }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="term_id">Periodo academico</label>
+        <select name="term_id" id="term_id">
+          {% for term in terms %}
+            <option value="{{ term.id }}" {% if selected_term and term.id == selected_term.id %}selected{% endif %}>
+              {{ term.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Consultar horario</button>
+  </form>
+</div>
+
+{% if selected_student and selected_term %}
+<div class="results-header">
+  <div>
+    <h2>{{ selected_student.full_name|default:selected_student.user.email }} - {{ selected_term.name }}</h2>
+    <p class="subtitle">El horario se construye con cursos marcados como inscritos para el estudiante en ese periodo.</p>
+  </div>
+  <div class="summary-pills">
+    <span class="pill">{{ course_count }} cursos</span>
+    <span class="pill pill-secondary">{{ session_count }} sesiones</span>
+  </div>
+</div>
+
+{% if rows %}
+<div class="card">
+  <table class="schedule-table">
+    <thead>
+      <tr>
+        <th>Codigo</th>
+        <th>Curso</th>
+        <th>Seccion / NRC</th>
+        <th>Docente</th>
+        <th>Dia</th>
+        <th>Hora</th>
+        <th>Ubicacion</th>
+        <th>Estado</th>
+        <th>Notas</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td><code>{{ row.course_code }}</code></td>
+        <td>{{ row.course_name }}</td>
+        <td>{{ row.section }}</td>
+        <td>{{ row.teacher }}</td>
+        <td>{{ row.day }}</td>
+        <td>{{ row.start_time }}{% if row.end_time != "-" %} - {{ row.end_time }}{% endif %}</td>
+        <td>{{ row.location }}</td>
+        <td>{{ row.status }}</td>
+        <td>{{ row.notes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card empty-card">
+  <h3>Sin horario registrado</h3>
+  <p>No hay cursos inscritos para este estudiante en el periodo seleccionado.</p>
+</div>
+{% endif %}
+{% endif %}
+
+<style>
+.page-header{margin-bottom:1.5rem}.page-header h1{margin:0;font-size:1.8rem}.subtitle{color:#666;margin-top:.35rem}.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.4rem;margin-bottom:1.5rem}.form-row{display:flex;gap:1rem;flex-wrap:wrap}.form-group{display:flex;flex-direction:column;gap:.45rem;min-width:240px;flex:1}.form-group select{padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:8px}.btn{padding:.65rem 1.15rem;border:none;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}.btn-primary{background:#1d4ed8;color:#fff}.results-header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem}.summary-pills{display:flex;gap:.6rem;flex-wrap:wrap}.pill{padding:.3rem .7rem;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-weight:600}.pill-secondary{background:#dcfce7;color:#166534}.schedule-table{width:100%;border-collapse:collapse}.schedule-table th,.schedule-table td{padding:.7rem;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}.schedule-table th{background:#f8fafc}.empty-card{text-align:center}code{background:#f1f5f9;padding:.15rem .3rem;border-radius:4px}
+</style>
+{% endblock %}
